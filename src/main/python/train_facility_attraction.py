@@ -2,14 +2,10 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-
 import geopandas as gpd
-import numpy as np
 import pandas as pd
-
-from sklearn.model_selection import KFold
-
 from matsim.scenariogen.ml import MLRegressor
+from sklearn.model_selection import KFold
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="train_facility", description="Train facility model")
@@ -52,15 +48,18 @@ if __name__ == "__main__":
     for purpose in ("other", "work"):
 
         tf = mapped_visits[mapped_visits.purpose == purpose]
+        tf = tf[tf.n >= 5]
 
         df = pd.merge(shp, tf, left_on="osm_id", right_on="location", how="inner", validate="1:1")
-        df["target"] = df.n / df.area
+        df["target"] = df.n
+
+        df = df[df.residential_only == 0]
+        df = df[df.n < df.n.quantile(0.999)]
+        df = df[df.area < df.area.quantile(0.98)]
 
         # Drop outliers
-        upper = df.target.quantile(0.95)
-        df.target = np.minimum(df.target, upper)
-
-        ml = MLRegressor(fold=KFold(n_splits=3, shuffle=True, random_state=0), bounds=(0, upper))
+        upper = df.target.quantile(0.99)
+        ml = MLRegressor(fold=KFold(n_splits=5, shuffle=True, random_state=0), bounds=None, classifier=["LGBMRegressor"])
 
         ml.fit(df, "target", exclude=["purpose", "osm_id", "osm_type", "location", "n"])
 

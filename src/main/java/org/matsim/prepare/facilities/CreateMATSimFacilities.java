@@ -130,17 +130,11 @@ public class CreateMATSimFacilities implements MATSimAppCommand {
 		}
 
 		// Upper bounds for attraction
-		double workIQR = work.getPercentile(75) - work.getPercentile(25);
-		double otherIQR = other.getPercentile(75) - other.getPercentile(25);
+		double workUpper = work.getPercentile(99.99);
+		double otherUpper = other.getPercentile(99.99);
 
-		double workUpper = work.getPercentile(75) + 1.5 * workIQR;
-		double otherUpper = other.getPercentile(75) + 1.5 * otherIQR;
-
-		double workLower = Math.max(Math.max(work.getPercentile(1), 0.1), work.getPercentile(25) - 1.5 * workIQR);
-		double otherLower = Math.max(Math.max(other.getPercentile(1), 0.1), other.getPercentile(25) - 1.5 * otherIQR);
-
-		log.info("Work IQR: {} Upper: {} Lower: {}", workIQR, workUpper, workLower);
-		log.info("Other IQR: {} Upper: {} Lower: {}", otherIQR, otherUpper, otherLower);
+		log.info("Work upper bound: {}", workUpper);
+		log.info("Other upper bound: {}", otherUpper);
 
 		ActivityFacilities facilities = FacilitiesUtils.createActivityFacilities();
 
@@ -167,10 +161,10 @@ public class CreateMATSimFacilities implements MATSimAppCommand {
 
 			// Filter outliers from the attraction
 			facility.getAttributes().putAttribute(Attributes.ATTRACTION_WORK,
-				round(Math.min(Math.max(h.attractionWork, workLower), workUpper))
+				round(Math.min(Math.max(h.attractionWork, 5), workUpper))
 			);
 			facility.getAttributes().putAttribute(Attributes.ATTRACTION_OTHER,
-				round(Math.min(Math.max(h.attractionOther, otherLower), otherUpper))
+				round(Math.min(Math.max(h.attractionOther, 5), otherUpper))
 			);
 
 			if (zones != null) {
@@ -220,8 +214,6 @@ public class CreateMATSimFacilities implements MATSimAppCommand {
 			}
 		}
 
-		double area = (double) ft.getAttribute("area");
-
 		List<Map.Entry<Id<Link>, Long>> counts = map.entrySet().stream().sorted(Map.Entry.comparingByValue())
 			.toList();
 
@@ -229,8 +221,8 @@ public class CreateMATSimFacilities implements MATSimAppCommand {
 		Id<Link> link = counts.get(counts.size() - 1).getKey();
 
 		Holder holder = new Holder(link, activities, new ArrayList<>(),
-			area * FacilityAttractionModelWork.INSTANCE.predict(features, null),
-			area * FacilityAttractionModelOther.INSTANCE.predict(features, null)
+			FacilityAttractionModelWork.INSTANCE.predict(features, null),
+			FacilityAttractionModelOther.INSTANCE.predict(features, null)
 		);
 
 		// Search for the original drawn coordinate of the associated link
