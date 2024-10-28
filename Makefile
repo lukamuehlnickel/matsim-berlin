@@ -121,8 +121,8 @@ $p/berlin-$V-network.xml.gz: input/sumo.net.xml
 
 $p/berlin-$V-network-with-pt.xml.gz: $p/berlin-$V-network.xml.gz
 	$(sc) prepare transit-from-gtfs --network $< --output=$p\
-	 --name berlin-$V --date "2024-11-18" --target-crs $(CRS) \
-	 $(germany)/gtfs/complete-pt-2024-10-21.zip\
+	 --name berlin-$V --date "2024-11-19" --target-crs $(CRS) \
+	 $(germany)/gtfs/complete-pt-2024-10-27.zip\
 	 --copy-late-early\
 	 --transform-stops org.matsim.prepare.pt.CorrectStopLocations\
 	 --transform-routes org.matsim.prepare.pt.CorrectRouteTypes\

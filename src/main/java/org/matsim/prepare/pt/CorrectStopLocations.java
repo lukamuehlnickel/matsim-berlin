@@ -14,13 +14,13 @@ public class CorrectStopLocations implements Consumer<Stop> {
 	public void accept(Stop stop) {
 
 		// Harpe, Ort
-		if (stop.stop_id.equals("240019")) {
+		if (stop.stop_id.equals("592385")) {
 			stop.stop_lat = 52.8519613;
 			stop.stop_lon = 10.8828626;
 		}
 
 		// Quastenberger Damm
-		if (stop.stop_id.equals("490866")) {
+		if (stop.stop_id.equals("152719")) {
 			stop.stop_lat = 53.4978109;
 			stop.stop_lon = 13.3297704;
 		}
