@@ -89,7 +89,10 @@ public class CreateCountsFromVMZ implements MATSimAppCommand {
 		{
 			Network unfiltered = NetworkUtils.readNetwork(network.toString());
 			NetworkFilterManager manager = new NetworkFilterManager(unfiltered, new NetworkConfigGroup());
+
+			// Some links can not be matched
 			manager.addLinkFilter(l -> !l.getId().toString().startsWith("pt_"));
+			manager.addLinkFilter(l -> !NetworkUtils.getHighwayType(l).equals("service"));
 
 			net = manager.applyFilters();
 		}
