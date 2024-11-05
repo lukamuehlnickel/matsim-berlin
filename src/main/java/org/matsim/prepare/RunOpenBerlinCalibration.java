@@ -20,6 +20,7 @@ import org.matsim.application.prepare.network.params.ApplyNetworkParams;
 import org.matsim.application.prepare.population.*;
 import org.matsim.application.prepare.pt.CreateTransitScheduleFromGtfs;
 import org.matsim.application.prepare.scenario.CreateScenarioCutOut;
+import org.matsim.contrib.bicycle.BicycleConfigGroup;
 import org.matsim.contrib.cadyts.car.CadytsCarModule;
 import org.matsim.contrib.cadyts.car.CadytsContext;
 import org.matsim.contrib.cadyts.general.CadytsScoring;
@@ -228,6 +229,8 @@ public class RunOpenBerlinCalibration extends MATSimApplication {
 			);
 
 			config.qsim().setMainModes(List.of(TransportMode.car));
+		} else {
+			ConfigUtils.addOrGetModule(config, BicycleConfigGroup.class);
 		}
 
 		// Required for all calibration strategies
