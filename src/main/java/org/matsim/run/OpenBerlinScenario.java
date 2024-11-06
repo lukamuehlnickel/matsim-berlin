@@ -79,6 +79,8 @@ public class OpenBerlinScenario extends MATSimApplication {
 			config.plans().setInputFile(sample.adjustName(config.plans().getInputFile()));
 		}
 
+		config.qsim().setUsingTravelTimeCheckInTeleportation(true);
+
 		// overwrite ride scoring params with values derived from car
 		RideScoringParamsFromCarParams.setRideScoringParamsBasedOnCarParams(config.scoring(), 1.0);
 		Activities.addScoringParams(config, true);
@@ -125,6 +127,7 @@ public class OpenBerlinScenario extends MATSimApplication {
 		eConfig.setAverageWarmEmissionFactorsFile(HBEFA_FILE_WARM_AVERAGE);
 		eConfig.setHbefaTableConsistencyCheckingLevel(EmissionsConfigGroup.HbefaTableConsistencyCheckingLevel.consistent);
 		eConfig.setDetailedVsAverageLookupBehavior(EmissionsConfigGroup.DetailedVsAverageLookupBehavior.tryDetailedThenTechnologyAverageThenAverageTable);
+		eConfig.setEmissionsComputationMethod(EmissionsConfigGroup.EmissionsComputationMethod.StopAndGoFraction);
 
 		return config;
 	}

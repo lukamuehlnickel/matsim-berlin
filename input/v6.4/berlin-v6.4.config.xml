@@ -41,6 +41,7 @@
 	<module name="routing">
 		<param name="networkModes" value="car,truck,freight,ride,bike"/>
 		<param name="accessEgressType" value="accessEgressModeToLink"/>
+		<param name="clearDefaultTeleportedModeParams" value="true"/>
 		<parameterset type="teleportedModeParameters">
 			<param name="beelineDistanceFactor" value="1.3"/>
 			<param name="mode" value="walk"/>
@@ -101,6 +102,8 @@
 
 	<module name="scoring">
 		<param name="fractionOfIterationsToStartScoreMSA" value="0.9"/>
+		<param name="pathSizeLogitBeta" value="0"/>
+
 		<parameterset type="scoringParameters">
 			<param name="marginalUtilityOfMoney" value="1.0"/>
 			<!-- car prices 2012->2022: inflation (110.2-91.7)/91.7 = 0.2017448
