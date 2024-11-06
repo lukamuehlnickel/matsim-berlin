@@ -44,3 +44,15 @@ if __name__ == "__main__":
     print(result.share)
 
     print(result.groups)
+
+    t = result.trips
+
+    # Weighted mean
+    wm = lambda x: np.average(x, weights=t.loc[x.index, "t_weight"])
+
+    t["speed"] = (t.gis_length * 3600) / (t.duration * 60)
+
+    aggr = t.groupby("main_mode").agg(kmh=("speed", wm))
+
+    print("Avg speeds. per mode")
+    print(aggr)
