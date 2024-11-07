@@ -58,6 +58,7 @@
 		<param name="endTime" value="36:00:00"/>
 		<param name="stuckTime" value="30.0"/>
 		<param name="trafficDynamics" value="kinematicWaves"/>
+		<param name="linkDynamics" value="PassingQ"/>
 		<param name="vehiclesSource" value="modeVehicleTypesFromVehiclesData"/>
 		<param name="insertingWaitingVehiclesBeforeDrivingVehicles" value="true"/>
 		<param name="usePersonIdForMissingVehicleId" value="false"/>

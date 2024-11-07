@@ -93,6 +93,7 @@ public class CreateCountsFromVMZ implements MATSimAppCommand {
 			// Some links can not be matched
 			manager.addLinkFilter(l -> !l.getId().toString().startsWith("pt_"));
 			manager.addLinkFilter(l -> !NetworkUtils.getHighwayType(l).equals("service"));
+			manager.addLinkFilter(l -> !NetworkUtils.getHighwayType(l).equals("living_street"));
 
 			net = manager.applyFilters();
 		}

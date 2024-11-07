@@ -61,7 +61,7 @@ input/network.osm: input/brandenburg.osm.pbf
 
 	# Detailed network includes bikes as well
 	$(osmosis) --rb file=$<\
-	 --tf accept-ways bicycle=yes,designated highway=motorway,motorway_link,trunk,trunk_link,primary,primary_link,secondary_link,secondary,tertiary,motorway_junction,residential,living_street,unclassified,cycleway\
+	 --tf accept-ways bicycle=designated highway=motorway,motorway_link,trunk,trunk_link,primary,primary_link,secondary_link,secondary,tertiary,motorway_junction,residential,living_street,unclassified,cycleway\
 	 --bounding-polygon file="$p/area/area.poly"\
 	 --used-node --wb input/network-detailed.osm.pbf
 
@@ -90,7 +90,7 @@ input/sumo.net.xml: input/network.osm
 	 --output.original-names --output.street-names\
 	 --osm.lane-access false --osm.bike-access false\
 	 --osm.all-attributes\
-	 --osm.extra-attributes smoothness,surface,crossing,tunnel,traffic_sign,bus:lanes,bus:lanes:forward,bus:lanes:backward,cycleway,cycleway:right,cycleway:left\
+	 --osm.extra-attributes smoothness,surface,crossing,tunnel,traffic_sign,bus:lanes,bus:lanes:forward,bus:lanes:backward,cycleway,cycleway:right,cycleway:left,bicycle\
 	 --proj "+proj=utm +zone=32 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs"\
 	 --osm-files $< -o=$@
 
