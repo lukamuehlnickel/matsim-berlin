@@ -24,9 +24,9 @@
 		<width meter="1.0"/>
 
 		<!-- The speed was set such that the obtained avg. speed per trip matches the one reported in the SrV survey -->
-		<!-- Note that this speed includes all the effects of delays that might occur, such as waiting traffic lights -->
-		<!-- 11.5 kmh -->
-		<maximumVelocity meterPerSecond="3.28"/>
+		<!-- Note that this speed includes all the effects of delays that might occur, such as waiting for traffic lights -->
+		<!-- The reported data is 10.29 km/h, it needs to set higher here (+0.5) because this includes access/egress as well -->
+		<maximumVelocity meterPerSecond="3"/>
 		<passengerCarEquivalents pce="0.2"/>
 		<networkMode networkMode="bike"/>
 	</vehicleType>
