@@ -98,6 +98,9 @@ public class AssignReferencePopulation implements MATSimAppCommand {
 		for (Map.Entry<String, CSVRecord> e : ProgressBar.wrap(persons, "Assigning reference population")) {
 
 			CSVRecord p = e.getValue();
+
+			// The persons csv is upscaled using the weight of the person, which is easier to handle in many algorithms
+			// However, here we take only the original person from the person table, which means that the weight needs to be considered as well
 			if (!p.get("seq").equals("0"))
 				continue;
 
