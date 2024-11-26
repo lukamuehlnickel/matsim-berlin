@@ -17,6 +17,9 @@ public class AdvancedScoringModule extends AbstractModule {
 
 		bind(ScoringParametersForPerson.class).to(IndividualPersonScoringParameters.class).in(Singleton.class);
 
+		bind(PseudoRandomScorer.class).in(Singleton.class);
+		bind(PseudoRandomTripScore.class).to(DefaultPseudoRandomTripScore.class).in(Singleton.class);
+
 		addControlerListenerBinding().to(AdvancedScoringOutputWriter.class).in(Singleton.class);
 
 		bindScoringFunctionFactory().to(AdvancedScoringFunctionFactory.class).in(Singleton.class);

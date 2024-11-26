@@ -35,7 +35,7 @@ import playground.vsp.scoring.IncomeDependentUtilityOfMoneyPersonScoringParamete
 
 import java.util.List;
 
-@CommandLine.Command(header = ":: Open Berlin Scenario ::", version = OpenBerlinScenario.VERSION, mixinStandardHelpOptions = true)
+@CommandLine.Command(header = ":: Open Berlin Scenario ::", version = OpenBerlinScenario.VERSION, mixinStandardHelpOptions = true, showDefaultValues = true)
 public class OpenBerlinScenario extends MATSimApplication {
 
 	public static final String VERSION = "6.4";
@@ -50,6 +50,11 @@ public class OpenBerlinScenario extends MATSimApplication {
 
 	@CommandLine.Mixin
 	private final SampleOptions sample = new SampleOptions(10, 25, 3, 1);
+
+	@CommandLine.Option(names = "--plan-selector",
+		description = "Plan selector to use.",
+		defaultValue = DefaultPlanStrategiesModule.DefaultSelector.ChangeExpBeta)
+	private String planSelector;
 
 	public OpenBerlinScenario() {
 		super(String.format("input/v%s/berlin-v%s.config.xml", VERSION, VERSION));
@@ -89,7 +94,7 @@ public class OpenBerlinScenario extends MATSimApplication {
 		for (String subpopulation : List.of("person", "freight", "goodsTraffic", "commercialPersonTraffic", "commercialPersonTraffic_service")) {
 			config.replanning().addStrategySettings(
 				new ReplanningConfigGroup.StrategySettings()
-					.setStrategyName(DefaultPlanStrategiesModule.DefaultSelector.ChangeExpBeta)
+					.setStrategyName(planSelector)
 					.setWeight(1.0)
 					.setSubpopulation(subpopulation)
 			);
@@ -151,6 +156,7 @@ public class OpenBerlinScenario extends MATSimApplication {
 		// AdvancedScoring is specific to matsim-berlin!
 		if (ConfigUtils.hasModule(controler.getConfig(), AdvancedScoringConfigGroup.class)) {
 			controler.addOverridingModule(new AdvancedScoringModule());
+			controler.getConfig().scoring().setExplainScores(true);
 		} else {
 			// if the above config group is not present we still need income dependent scoring
 			// this implementation also allows for person specific asc

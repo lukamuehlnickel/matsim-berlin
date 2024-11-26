@@ -195,7 +195,7 @@
 		<param name="countsScaleFactor" value="0.1"/>
 	</module>
 
-	<module name="ReplanningAnnealer">
+	<module name="replanningAnnealer">
 		<param name="activateAnnealingModule" value="true" />
 		<parameterset type="AnnealingVariable" >
 			<param name="annealParameter" value="globalInnovationRate" />

@@ -21,7 +21,7 @@ public class AdvancedScoringFunctionFactory implements ScoringFunctionFactory {
 	private ScoringParametersForPerson params;
 
 	@Inject
-	private Network network;
+	private PseudoRandomScorer pseudoRNG;
 
 	@Override
 	public ScoringFunction createNewScoringFunction(Person person) {
@@ -30,7 +30,7 @@ public class AdvancedScoringFunctionFactory implements ScoringFunctionFactory {
 		SumScoringFunction sumScoringFunction = new SumScoringFunction();
 		sumScoringFunction.addScoringFunction(new CharyparNagelActivityScoring(parameters));
 		// replaced original leg scoring
-		sumScoringFunction.addScoringFunction(new PiecewiseLinearlLegScoring(parameters, this.network, config.transit().getTransitModes()));
+		sumScoringFunction.addScoringFunction(new PiecewiseLinearlLegScoring(parameters, person.getId(), config.transit().getTransitModes(), pseudoRNG));
 		sumScoringFunction.addScoringFunction(new CharyparNagelMoneyScoring(parameters));
 		sumScoringFunction.addScoringFunction(new CharyparNagelAgentStuckScoring(parameters));
 		sumScoringFunction.addScoringFunction(new ScoreEventScoring());

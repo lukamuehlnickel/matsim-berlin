@@ -29,6 +29,10 @@ public final class AdvancedScoringConfigGroup extends ReflectiveConfigGroup {
 	@Comment("Define how to load existing preferences.")
 	public LoadPreferences loadPreferences = LoadPreferences.none;
 
+	@Parameter
+	@Comment("Scale for pseudo random errors. 0 disables it completely.")
+	public double pseudoRamdomScale = 0;
+
 	private final List<ScoringParameters> scoringParameters = new ArrayList<>();
 
 	public AdvancedScoringConfigGroup() {
@@ -83,7 +87,7 @@ public final class AdvancedScoringConfigGroup extends ReflectiveConfigGroup {
 	 * Variate values with random draw from specific distribution.
 	 */
 	public enum VariationType {
-		fixed, normal, truncatedNormal
+		fixed, normal, truncatedNormal, gumbel
 	}
 
 	/**
