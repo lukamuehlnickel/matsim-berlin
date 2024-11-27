@@ -11,7 +11,7 @@ import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
 
 /**
- * Computes pseudo random scores, which are frozen for certain choice situations, thus representing the unobserved heterogeneity.
+ * Computes pseudo random errors (epsilons), which are frozen for certain choice situations, thus representing the unobserved heterogeneity.
  */
 public final class PseudoRandomScorer {
 
@@ -20,12 +20,12 @@ public final class PseudoRandomScorer {
 	 */
 	private static final int WARMUP_ITERATIONS = 100;
 
-	private final PseudoRandomTripScore tripScore;
+	private final PseudoRandomTripError tripScore;
 	private final long seed;
 	private final double scale;
 
 	@Inject
-	public PseudoRandomScorer(PseudoRandomTripScore tripScore, Config config) {
+	public PseudoRandomScorer(PseudoRandomTripError tripScore, Config config) {
 		this.tripScore = tripScore;
 		this.seed = config.global().getRandomSeed();
 		this.scale = ConfigUtils.addOrGetModule(config, AdvancedScoringConfigGroup.class).pseudoRamdomScale;

@@ -4,9 +4,9 @@ import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.population.Person;
 
 /**
- * Interface to provide pseudo-random scoring for a trip.*
+ * Interface to provide pseudo-random errors for a trip.
  */
-public interface PseudoRandomTripScore {
+public interface PseudoRandomTripError {
 
 	/**
 	 * Return a seed for a trip. The seed must be designed such that it is constant for the same choice situations.

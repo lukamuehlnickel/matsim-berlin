@@ -6,7 +6,7 @@ import org.matsim.api.core.v01.population.Person;
 /**
  * Computes a random seed based on person id, previous activity and routing mode.
  */
-public final class DefaultPseudoRandomTripScore implements PseudoRandomTripScore {
+public final class DefaultPseudoRandomTripError implements PseudoRandomTripError {
 
 	@Override
 	public long getSeed(Id<Person> personId, String routingMode, String prevActivityType) {
