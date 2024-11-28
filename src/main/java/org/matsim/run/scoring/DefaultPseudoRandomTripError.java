@@ -17,6 +17,6 @@ public final class DefaultPseudoRandomTripError implements PseudoRandomTripError
 		int modeAndActHash = 31 * modeHash + prevActivityType.hashCode();
 
 		// Combine two integers to long
-		return (((long) personHash << 32) | (modeAndActHash & 0xFFFFFFFFL));
+		return (long) personHash << 32 | modeAndActHash & 0xFFFFFFFFL;
 	}
 }
