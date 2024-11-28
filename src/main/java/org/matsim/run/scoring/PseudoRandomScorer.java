@@ -5,6 +5,7 @@ import org.apache.commons.math3.exception.OutOfRangeException;
 import org.apache.commons.math3.util.FastMath;
 import org.apache.commons.rng.UniformRandomProvider;
 import org.apache.commons.rng.core.source64.XoRoShiRo128PlusPlus;
+import org.apache.commons.rng.sampling.distribution.ZigguratSampler;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.config.Config;
@@ -23,12 +24,14 @@ public final class PseudoRandomScorer {
 	private final PseudoRandomTripError tripScore;
 	private final long seed;
 	private final double scale;
+	private final AdvancedScoringConfigGroup.VariationType distribution;
 
 	@Inject
 	public PseudoRandomScorer(PseudoRandomTripError tripScore, Config config) {
 		this.tripScore = tripScore;
 		this.seed = config.global().getRandomSeed();
 		this.scale = ConfigUtils.addOrGetModule(config, AdvancedScoringConfigGroup.class).pseudoRamdomScale;
+		this.distribution = ConfigUtils.addOrGetModule(config, AdvancedScoringConfigGroup.class).pseudoRandomDistribution;
 	}
 
 	/**
@@ -47,7 +50,11 @@ public final class PseudoRandomScorer {
 			rng.nextLong();
 		}
 
-		return sampleGumbel(rng, 0, scale);
+		return switch (distribution) {
+			case gumbel -> sampleGumbel(rng, 0, scale);
+			case normal -> sampleNormal(rng, 0, scale);
+			default -> throw new IllegalStateException("Unsupported distribution: " + distribution);
+		};
 	}
 
 
@@ -69,6 +76,10 @@ public final class PseudoRandomScorer {
 		}
 
 		return mu - FastMath.log(-FastMath.log(v)) * beta;
+	}
+
+	private double sampleNormal(UniformRandomProvider rng, double mu, double sigma) {
+		return mu + ZigguratSampler.NormalizedGaussian.of(rng).sample() * sigma;
 	}
 
 }

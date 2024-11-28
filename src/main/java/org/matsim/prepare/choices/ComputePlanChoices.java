@@ -205,6 +205,7 @@ public class ComputePlanChoices implements MATSimAppCommand, PersonAlgorithm {
 			header.add("income");
 			header.add("util_money");
 			header.add("choice");
+			header.add("n_trips");
 
 			for (int i = 1; i <= topK; i++) {
 
@@ -285,6 +286,7 @@ public class ComputePlanChoices implements MATSimAppCommand, PersonAlgorithm {
 
 		// choice, always the first one
 		row.add(1);
+		row.add(model.trips());
 
 		List<PlanCandidate> candidates = ctx.generator.generate(model, modes, null);
 

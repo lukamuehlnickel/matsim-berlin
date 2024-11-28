@@ -33,6 +33,10 @@ public final class AdvancedScoringConfigGroup extends ReflectiveConfigGroup {
 	@Comment("Scale for pseudo random errors. 0 disables it completely.")
 	public double pseudoRamdomScale = 0;
 
+	@Parameter
+	@Comment("Distribution of the random error terms.")
+	public VariationType pseudoRandomDistribution = VariationType.normal;
+
 	private final List<ScoringParameters> scoringParameters = new ArrayList<>();
 
 	public AdvancedScoringConfigGroup() {
