@@ -11,6 +11,8 @@ import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
 
+import java.util.SplittableRandom;
+
 /**
  * Computes pseudo random errors (epsilons), which are frozen for certain choice situations, thus representing the unobserved heterogeneity.
  */
@@ -29,9 +31,16 @@ public final class PseudoRandomScorer {
 	@Inject
 	public PseudoRandomScorer(PseudoRandomTripError tripScore, Config config) {
 		this.tripScore = tripScore;
-		this.seed = config.global().getRandomSeed();
 		this.scale = ConfigUtils.addOrGetModule(config, AdvancedScoringConfigGroup.class).pseudoRamdomScale;
 		this.distribution = ConfigUtils.addOrGetModule(config, AdvancedScoringConfigGroup.class).pseudoRandomDistribution;
+
+		SplittableRandom rnd = new SplittableRandom(config.global().getRandomSeed());
+		for (int i = 0; i < WARMUP_ITERATIONS; i++) {
+			rnd.nextDouble();
+		}
+		
+		// Create a random seed from the global one
+		this.seed = rnd.nextLong();
 	}
 
 	/**
