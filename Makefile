@@ -127,6 +127,8 @@ $p/berlin-$V-network-with-pt.xml.gz: $p/berlin-$V-network.xml.gz
 	 --transform-stops org.matsim.prepare.pt.CorrectStopLocations\
 	 --transform-routes org.matsim.prepare.pt.CorrectRouteTypes\
 	 --transform-schedule org.matsim.application.prepare.pt.AdjustSameDepartureTimes\
+	 --pseudo-network withLoopLinks\
+	 --merge-stops mergeToParentAndRouteTypes\
 	 --shp $p/pt-area/pt-area.shp
 
 $p/berlin-$V-counts-vmz.xml.gz: $p/berlin-$V-network.xml.gz

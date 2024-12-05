@@ -36,7 +36,6 @@ import org.matsim.core.utils.geometry.geotools.MGC;
 import org.matsim.core.utils.geometry.transformations.TransformationFactory;
 import org.matsim.freight.carriers.*;
 import org.matsim.freight.carriers.Tour.TourElement;
-import org.matsim.freight.carriers.controler.CarrierModule;
 import org.matsim.freight.carriers.jsprit.MatsimJspritFactory;
 import org.matsim.freight.carriers.jsprit.NetworkBasedTransportCosts;
 import org.matsim.freight.carriers.jsprit.NetworkRouter;
@@ -604,8 +603,8 @@ class AbfallUtils {
 						scenario.getConfig().controller().getOutputDirectory() + "/jsprit_CarrierPlans_Test01.png",
 						"bestSolution");
 		}
-		new CarrierPlanXmlWriterV2(carriers)
-				.write(scenario.getConfig().controller().getOutputDirectory() + "/jsprit_CarrierPlans.xml");
+//		new CarrierPlanXmlWriterV2(carriers)
+//				.write(scenario.getConfig().controller().getOutputDirectory() + "/jsprit_CarrierPlans.xml");
 
 	}
 
@@ -625,7 +624,7 @@ class AbfallUtils {
 	static Controler prepareControler(Scenario scenario) {
 		Controler controler = new Controler(scenario);
 
-		controler.addOverridingModule( new CarrierModule() );
+//		controler.addOverridingModule( new CarrierModule() );
 
 		controler.addOverridingModule(new AbstractModule() {
 			@Override
