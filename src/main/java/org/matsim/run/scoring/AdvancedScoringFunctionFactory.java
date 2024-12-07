@@ -3,6 +3,7 @@ package org.matsim.run.scoring;
 import com.google.inject.Inject;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.config.Config;
+import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.scoring.ScoringFunction;
 import org.matsim.core.scoring.ScoringFunctionFactory;
 import org.matsim.core.scoring.SumScoringFunction;
@@ -13,14 +14,18 @@ import org.matsim.core.scoring.functions.*;
  */
 public class AdvancedScoringFunctionFactory implements ScoringFunctionFactory {
 
-	@Inject
-	private Config config;
+	private final Config config;
+	private final AdvancedScoringConfigGroup scoring;
+	private final ScoringParametersForPerson params;
+	private final PseudoRandomScorer pseudoRNG;
 
 	@Inject
-	private ScoringParametersForPerson params;
-
-	@Inject
-	private PseudoRandomScorer pseudoRNG;
+	public AdvancedScoringFunctionFactory(Config config, ScoringParametersForPerson params, PseudoRandomScorer pseudoRNG) {
+		this.config = config;
+		this.scoring = ConfigUtils.addOrGetModule(config, AdvancedScoringConfigGroup.class);
+		this.params = params;
+		this.pseudoRNG = pseudoRNG;
+	}
 
 	@Override
 	public ScoringFunction createNewScoringFunction(Person person) {
@@ -28,8 +33,13 @@ public class AdvancedScoringFunctionFactory implements ScoringFunctionFactory {
 
 		SumScoringFunction sumScoringFunction = new SumScoringFunction();
 		sumScoringFunction.addScoringFunction(new CharyparNagelActivityScoring(parameters));
+
+		if (scoring.pseudoRamdomScale > 0) {
+			sumScoringFunction.addScoringFunction(new PseudoRandomTripScoring(person.getId(), pseudoRNG));
+		}
+
 		// replaced original leg scoring
-		sumScoringFunction.addScoringFunction(new PiecewiseLinearlLegScoring(parameters, person.getId(), config.transit().getTransitModes(), pseudoRNG));
+		sumScoringFunction.addScoringFunction(new PiecewiseLinearlLegScoring(parameters, config.transit().getTransitModes()));
 		sumScoringFunction.addScoringFunction(new CharyparNagelMoneyScoring(parameters));
 		sumScoringFunction.addScoringFunction(new CharyparNagelAgentStuckScoring(parameters));
 		sumScoringFunction.addScoringFunction(new ScoreEventScoring());
