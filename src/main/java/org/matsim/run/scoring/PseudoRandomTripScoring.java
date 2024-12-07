@@ -13,6 +13,9 @@ import org.matsim.core.scoring.SumScoringFunction;
 
 import java.util.List;
 
+/**
+ * Scoring function that assigns a pseudo-random score to each trip.
+ */
 public class PseudoRandomTripScoring implements SumScoringFunction.TripScoring {
 
 	private static final Logger log = LogManager.getLogger(PseudoRandomTripScoring.class);
