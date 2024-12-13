@@ -181,6 +181,22 @@ public final class AdvancedScoringConfigGroup extends ReflectiveConfigGroup {
 		@Comment("Total delta utility per dist group.")
 		public List<Double> deltaPerDistGroup;
 
+		/*
+		Unused options:
+
+		@Parameter
+		@Comment("Marginal utility of distance calculated as beta_dist * (dist/ref_dist)^exp_dist.")
+		public double betaDist = 0;
+
+		@Parameter
+		@Comment("Reference mean distance.")
+		public double refDist;
+
+		@Parameter
+		@Comment("Exponent controlling non-linearity of distance utility.")
+		public double expDist = 0;
+		 */
+
 		public ModeParams() {
 			super(GROUP_NAME);
 		}
