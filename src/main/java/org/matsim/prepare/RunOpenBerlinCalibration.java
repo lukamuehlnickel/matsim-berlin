@@ -19,6 +19,8 @@ import org.matsim.application.prepare.network.CreateNetworkFromSumo;
 import org.matsim.application.prepare.network.params.ApplyNetworkParams;
 import org.matsim.application.prepare.population.*;
 import org.matsim.application.prepare.pt.CreateTransitScheduleFromGtfs;
+import org.matsim.application.prepare.scenario.CreateScenarioCutOut;
+import org.matsim.contrib.bicycle.BicycleConfigGroup;
 import org.matsim.contrib.cadyts.car.CadytsCarModule;
 import org.matsim.contrib.cadyts.car.CadytsContext;
 import org.matsim.contrib.cadyts.general.CadytsScoring;
@@ -27,12 +29,15 @@ import org.matsim.contrib.locationchoice.frozenepsilons.FrozenTastesConfigGroup;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.config.groups.ReplanningConfigGroup;
+import org.matsim.core.config.groups.RoutingConfigGroup;
 import org.matsim.core.config.groups.ScoringConfigGroup;
 import org.matsim.core.config.groups.VspExperimentalConfigGroup;
 import org.matsim.core.controler.AbstractModule;
 import org.matsim.core.controler.Controler;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.population.PopulationUtils;
+import org.matsim.core.population.routes.NetworkRoute;
+import org.matsim.core.population.routes.mediumcompressed.MediumCompressedNetworkRouteFactory;
 import org.matsim.core.replanning.choosers.ForceInnovationStrategyChooser;
 import org.matsim.core.replanning.choosers.StrategyChooser;
 import org.matsim.core.replanning.strategies.DefaultPlanStrategiesModule;
@@ -83,7 +88,7 @@ import java.util.stream.Collectors;
 	CreateLandUseShp.class, CreateBerlinPopulation.class, CreateBrandenburgPopulation.class, MergePopulations.class,
 	LookupRegioStaR.class, ExtractFacilityGeoPkg.class, DownSamplePopulation.class, DownloadCommuterStatistic.class,
 	RunActitopp.class, CreateNetworkFromSumo.class, CreateTransitScheduleFromGtfs.class,
-	CleanNetwork.class, CreateMATSimFacilities.class, InitLocationChoice.class, FilterRelevantAgents.class,
+	CleanNetwork.class, CreateMATSimFacilities.class, InitLocationChoice.class, CreateScenarioCutOut.class,
 	CreateCountsFromGeoPortalBerlin.class, CreateCountsFromVMZOld.class, CreateCountsFromVMZ.class, ReprojectNetwork.class, RunActivitySampling.class,
 	MergePlans.class, SplitActivityTypesDuration.class, CleanPopulation.class, CleanAttributes.class,
 	GenerateSmallScaleCommercialTrafficDemand.class, CreateDataDistributionOfStructureData.class,
@@ -156,6 +161,7 @@ public class RunOpenBerlinCalibration extends MATSimApplication {
 	}
 
 	@Override
+	@SuppressWarnings("JavaNCSS")
 	protected Config prepareConfig(Config config) {
 
 		if (populationPath == null) {
@@ -176,6 +182,9 @@ public class RunOpenBerlinCalibration extends MATSimApplication {
 		SimWrapperConfigGroup sw = ConfigUtils.addOrGetModule(config, SimWrapperConfigGroup.class);
 
 		config.replanningAnnealer().setActivateAnnealingModule(false);
+		config.replanning().setFractionOfIterationsToDisableInnovation(0.7);
+		config.scoring().setFractionOfIterationsToStartScoreMSA(0.7);
+
 
 		if (sample.isSet()) {
 			double sampleSize = sample.getSample();
@@ -203,6 +212,25 @@ public class RunOpenBerlinCalibration extends MATSimApplication {
 
 			// Disable dashboards, for all car runs, these take too many resources
 			sw.defaultDashboards = SimWrapperConfigGroup.Mode.disabled;
+
+			// Only car and ride will be network modes, ride is not simulated on the network though
+			config.routing().setNetworkModes(List.of(TransportMode.car, TransportMode.ride));
+			config.routing().addTeleportedModeParams(new RoutingConfigGroup.TeleportedModeParams(TransportMode.bike)
+				.setBeelineDistanceFactor(1.3)
+				.setTeleportedModeSpeed(3.1388889)
+			);
+			config.routing().addTeleportedModeParams(new RoutingConfigGroup.TeleportedModeParams(TransportMode.truck)
+				.setBeelineDistanceFactor(1.3)
+				.setTeleportedModeSpeed(8.3)
+			);
+			config.routing().addTeleportedModeParams(new RoutingConfigGroup.TeleportedModeParams("freight")
+				.setBeelineDistanceFactor(1.3)
+				.setTeleportedModeSpeed(8.3)
+			);
+
+			config.qsim().setMainModes(List.of(TransportMode.car));
+		} else {
+			ConfigUtils.addOrGetModule(config, BicycleConfigGroup.class);
 		}
 
 		// Required for all calibration strategies
@@ -280,6 +308,10 @@ public class RunOpenBerlinCalibration extends MATSimApplication {
 
 			config.vspExperimental().setVspDefaultsCheckingLevel(VspExperimentalConfigGroup.VspDefaultsCheckingLevel.ignore);
 
+			// Reduce number of threads, to reduce memory usage
+			config.global().setNumberOfThreads(Math.min(12, config.global().getNumberOfThreads()));
+			config.qsim().setNumberOfThreads(Math.min(12, config.qsim().getNumberOfThreads()));
+
 		} else if (mode == CalibrationMode.routeChoice) {
 
 			// Re-route for all populations
@@ -325,6 +357,9 @@ public class RunOpenBerlinCalibration extends MATSimApplication {
 		}
 
 		if (allCar) {
+
+			scenario.getPopulation().getFactory().getRouteFactories()
+				.setRouteFactory(NetworkRoute.class, new MediumCompressedNetworkRouteFactory());
 
 			log.info("Converting all agents to car plans.");
 
@@ -438,7 +473,7 @@ public class RunOpenBerlinCalibration extends MATSimApplication {
 			}
 		});
 
-		controler.addOverridingModule(new OpenBerlinScenario.TravelTimeBinding());
+		controler.addOverridingModule(new OpenBerlinScenario.TravelTimeBinding(allCar));
 		controler.addOverridingModule(new SimWrapperModule());
 
 		if (ConfigUtils.hasModule(controler.getConfig(), AdvancedScoringConfigGroup.class)) {

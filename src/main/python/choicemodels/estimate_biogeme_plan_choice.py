@@ -17,7 +17,7 @@ FIXED = 1
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Estimate choice model for daily trip usage")
     parser.add_argument("--input", help="Path to the input file", type=str,
-                        default="../../../../plan-choices-subtour_70.csv")
+                        default="../../../plan-choices-subtour_70.csv")
     parser.add_argument("--mxl-modes", help="Modes to use mixed logit for", nargs="+", type=str,
                         default=["pt", "bike", "ride", "car"])
     parser.add_argument("--no-mxl", help="Disable mixed logit", action="store_true")
@@ -27,6 +27,7 @@ if __name__ == "__main__":
     parser.add_argument("--exp-income", help="Exponent for income", type=float, default=1)
     parser.add_argument("--util-money", help="Utility of money", type=float, default=1)
     parser.add_argument("--est-util-money", help="Estimate utility of money", action="store_true")
+    parser.add_argument("--est-error-component", help="Add a normal error component to each trip choice",  action="store_true")
     parser.add_argument("--est-price-perception-car", help="Estimate price perception", action="store_true")
     parser.add_argument("--est-price-perception-pt", help="Estimate price perception", action="store_true")
     parser.add_argument("--same-price-perception", help="Only estimate one fixed price perception factor", action="store_true")
@@ -110,6 +111,13 @@ if __name__ == "__main__":
         print("Estimating car asc, instead of daily utility")
         B_CAR = 0
 
+    if args.est_error_component:
+        print("Estimating error component")
+        B_ERROR_S = Beta('B_ERROR_S', 0.5, None, None, ESTIMATE)
+        B_ERROR = B_ERROR_S * bioDraws('B_ERROR_RND', 'NORMAL')
+    else:
+        B_ERROR = 0
+
     print("Using MXL modes", args.mxl_modes)
     U = {}
     AV = {}
@@ -130,7 +138,7 @@ if __name__ == "__main__":
 
         u += v[f"plan_{i}_car_used"] * B_CAR
 
-        U[i] = u
+        U[i] = u + B_ERROR * v["n_trips"]
         AV[i] = v[f"plan_{i}_valid"]
 
     if args.no_mxl:

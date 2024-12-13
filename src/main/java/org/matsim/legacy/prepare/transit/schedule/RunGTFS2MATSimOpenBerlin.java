@@ -22,10 +22,7 @@
  */
 package org.matsim.legacy.prepare.transit.schedule;
 
-import java.io.File;
-import java.time.LocalDate;
-import java.util.List;
-
+import ch.sbb.matsim.routing.pt.raptor.SwissRailRaptorModule;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.matsim.api.core.v01.Id;
@@ -33,6 +30,7 @@ import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.api.core.v01.network.Node;
+import org.matsim.contrib.gtfs.GtfsConverter;
 import org.matsim.contrib.gtfs.RunGTFS2MATSim;
 import org.matsim.contrib.gtfs.TransitSchedulePostProcessTools;
 import org.matsim.core.config.Config;
@@ -48,27 +46,19 @@ import org.matsim.core.network.io.MatsimNetworkReader;
 import org.matsim.core.network.io.NetworkWriter;
 import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.core.utils.geometry.CoordinateTransformation;
+import org.matsim.core.utils.geometry.transformations.IdentityTransformation;
 import org.matsim.core.utils.geometry.transformations.TransformationFactory;
 import org.matsim.legacy.prepare.transit.schedule.CheckPtDelays.DelayRecord;
-import org.matsim.pt.transitSchedule.api.Departure;
-import org.matsim.pt.transitSchedule.api.TransitLine;
-import org.matsim.pt.transitSchedule.api.TransitRoute;
-import org.matsim.pt.transitSchedule.api.TransitRouteStop;
-import org.matsim.pt.transitSchedule.api.TransitSchedule;
-import org.matsim.pt.transitSchedule.api.TransitScheduleReader;
-import org.matsim.pt.transitSchedule.api.TransitScheduleWriter;
+import org.matsim.pt.transitSchedule.api.*;
 import org.matsim.pt.utils.CreatePseudoNetwork;
 import org.matsim.pt.utils.TransitScheduleValidator;
 import org.matsim.pt.utils.TransitScheduleValidator.ValidationResult;
-import org.matsim.vehicles.Vehicle;
-import org.matsim.vehicles.VehicleCapacity;
-import org.matsim.vehicles.VehicleType;
-import org.matsim.vehicles.MatsimVehicleWriter;
-import org.matsim.vehicles.VehiclesFactory;
+import org.matsim.vehicles.*;
 import org.matsim.vehicles.VehicleType.DoorOperationMode;
-import org.matsim.vehicles.VehicleUtils;
 
-import ch.sbb.matsim.routing.pt.raptor.SwissRailRaptorModule;
+import java.io.File;
+import java.time.LocalDate;
+import java.util.List;
 
 /**
  * @author  vsp-gleich
@@ -80,7 +70,7 @@ import ch.sbb.matsim.routing.pt.raptor.SwissRailRaptorModule;
  * TODO: Theoretically we would have to increase the boarding/alighting time and reduce the capacity of the transit vehicle types
  * according to the sample size.
  */
-
+@Deprecated
 public class RunGTFS2MATSimOpenBerlin {
 
 	private static final Logger log = LogManager.getLogger(RunGTFS2MATSimOpenBerlin.class);
@@ -113,7 +103,8 @@ public class RunGTFS2MATSimOpenBerlin {
 	    }
 
 		//Convert GTFS
-		RunGTFS2MATSim.convertGtfs(gtfsZipFile, scheduleFile, date, ct, false);
+		RunGTFS2MATSim.convertGtfs(gtfsZipFile, scheduleFile, date, date, new IdentityTransformation(),
+			false, GtfsConverter.MergeGtfsStops.doNotMerge);
 
 		//Parse the schedule again
 		Scenario scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig());

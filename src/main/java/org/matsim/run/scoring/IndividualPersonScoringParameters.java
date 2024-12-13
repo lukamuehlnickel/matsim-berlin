@@ -90,7 +90,15 @@ public class IndividualPersonScoringParameters implements ScoringParametersForPe
 		this.globalAvgIncome = computeAvgIncome(scenario.getPopulation());
 		this.categories = Category.fromConfigParams(this.scoring.getScoringParameters());
 		this.cache = new IdMap<>(Person.class, scenario.getPopulation().getPersons().size());
-		this.rnd = ThreadLocal.withInitial(() -> new Context(scenario.getConfig().global().getRandomSeed()));
+
+		// Create uncorrelated seed from the global seed
+		SplittableRandom rnd = new SplittableRandom(scenario.getConfig().global().getRandomSeed());
+		for (int i = 0; i < rnd.nextInt(); i++) {
+			rnd.nextLong();
+		}
+
+		byte[] seed = Longs.toByteArray(rnd.nextLong());
+		this.rnd = ThreadLocal.withInitial(() -> new Context(seed));
 	}
 
 	static DistanceGroup[] calcDistanceGroups(List<Integer> dists, DoubleList distUtils) {
@@ -338,11 +346,10 @@ public class IndividualPersonScoringParameters implements ScoringParametersForPe
 	 */
 	private record Context(NormalDistribution normal, TruncatedNormalDistribution tn, byte[] seed, RestorableUniformRandomProvider rnd) {
 
-		Context(long seed) {
+		Context(byte[] seed) {
 			this(NormalDistribution.of(0, 1),
 				TruncatedNormalDistribution.of(0, 1, 0, Double.POSITIVE_INFINITY),
-				// Feed seed into random number generator
-				Longs.toByteArray(new SplittableRandom(seed).nextLong()),
+				seed,
 				RandomSource.KISS.create());
 		}
 
@@ -361,6 +368,11 @@ public class IndividualPersonScoringParameters implements ScoringParametersForPe
 			System.arraycopy(person, 0, state, 8, Math.min(person.length, 12));
 
 			rnd.restoreState(new RandomProviderDefaultState(state));
+
+			// Warm up the generator
+			for (int i = 0; i < 100; i++) {
+				rnd.nextLong();
+			}
 		}
 	}
 }

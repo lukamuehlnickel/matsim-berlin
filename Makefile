@@ -61,7 +61,7 @@ input/network.osm: input/brandenburg.osm.pbf
 
 	# Detailed network includes bikes as well
 	$(osmosis) --rb file=$<\
-	 --tf accept-ways bicycle=yes,designated highway=motorway,motorway_link,trunk,trunk_link,primary,primary_link,secondary_link,secondary,tertiary,motorway_junction,residential,living_street,unclassified,cycleway\
+	 --tf accept-ways bicycle=designated highway=motorway,motorway_link,trunk,trunk_link,primary,primary_link,secondary_link,secondary,tertiary,motorway_junction,residential,living_street,unclassified,cycleway\
 	 --bounding-polygon file="$p/area/area.poly"\
 	 --used-node --wb input/network-detailed.osm.pbf
 
@@ -90,7 +90,7 @@ input/sumo.net.xml: input/network.osm
 	 --output.original-names --output.street-names\
 	 --osm.lane-access false --osm.bike-access false\
 	 --osm.all-attributes\
-	 --osm.extra-attributes tunnel,highway,traffic_sign,bus:lanes,bus:lanes:forward,bus:lanes:backward,cycleway,cycleway:right,cycleway:left\
+	 --osm.extra-attributes smoothness,surface,crossing,tunnel,traffic_sign,bus:lanes,bus:lanes:forward,bus:lanes:backward,cycleway,cycleway:right,cycleway:left,bicycle\
 	 --proj "+proj=utm +zone=32 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs"\
 	 --osm-files $< -o=$@
 
@@ -121,8 +121,14 @@ $p/berlin-$V-network.xml.gz: input/sumo.net.xml
 
 $p/berlin-$V-network-with-pt.xml.gz: $p/berlin-$V-network.xml.gz
 	$(sc) prepare transit-from-gtfs --network $< --output=$p\
-	 --name berlin-$V --date "2023-06-07" --target-crs $(CRS) \
-	 $(germany)/gtfs/complete-pt-2023-06-06.zip\
+	 --name berlin-$V --date "2024-11-19" --target-crs $(CRS) \
+	 $(germany)/gtfs/complete-pt-2024-10-27.zip\
+	 --copy-late-early\
+	 --transform-stops org.matsim.prepare.pt.CorrectStopLocations\
+	 --transform-routes org.matsim.prepare.pt.CorrectRouteTypes\
+	 --transform-schedule org.matsim.application.prepare.pt.AdjustSameDepartureTimes\
+	 --pseudo-network withLoopLinks\
+	 --merge-stops mergeToParentAndRouteTypes\
 	 --shp $p/pt-area/pt-area.shp
 
 	$(sc) prepare endless-circle-line\
@@ -294,11 +300,15 @@ $p/berlin-$V-25pct.plans_cadyts.xml.gz:
 
 # These depend on the output of optimization runs
 $p/berlin-$V-25pct.plans-initial.xml.gz: $p/berlin-$V-facilities.xml.gz $p/berlin-$V-network.xml.gz $p/berlin-longHaulFreight-$V-25pct.plans.xml.gz
-	$(sc) prepare filter-relevant-agents\
-	 --input $p/berlin-$V-25pct.plans_cadyts.xml.gz --output $@\
-	 --shp input/$V/area/area.shp\
+	$(sc) prepare scenario-cutout\
+	 --population $p/berlin-$V-25pct.plans_cadyts.xml.gz\
 	 --facilities $<\
-	 --network $(word 2,$^)
+	 --network $(word 2,$^)\
+	 --output-population $@\
+	 --output-network $p/network-cutout.xml.gz\
+	 --output-facilities $p/facilities-cutout.xml.gz\
+	 --input-crs $(CRS)\
+	 --shp input/$V/area/area.shp
 
 	$(sc) prepare split-activity-types-duration\
  	 --exclude commercial_start,commercial_end,freight_start,freight_end\
