@@ -5,111 +5,157 @@ import org.apache.logging.log4j.Logger;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.network.Link;
+import org.matsim.application.MATSimAppCommand;
 import org.matsim.core.config.ConfigUtils;
+import org.matsim.core.network.io.MatsimNetworkReader;
 import org.matsim.core.population.routes.NetworkRoute;
 import org.matsim.core.population.routes.RouteUtils;
 import org.matsim.core.scenario.ScenarioUtils;
+import org.matsim.core.utils.collections.Tuple;
 import org.matsim.pt.transitSchedule.api.*;
+import org.matsim.pt.utils.TransitScheduleValidator;
+import org.matsim.vehicles.*;
+import picocli.CommandLine;
 
+import java.nio.file.Path;
 import java.util.*;
 
-public class EndlessCircleLineScheduleModifier {
-	private final static Logger log = LogManager.getLogger(EndlessCircleLineScheduleModifier.class);
+// other schedule modifier in the make file implement Consumer<TransitSchedule>. But here we modify schedule and vehicles, so we cannot use that.
+@CommandLine.Command(name = "endless-circle-line", description = "Modifies Berlin S41 and S42 to run circle multiple times.")
+public class EndlessCircleLineScheduleModifier implements MATSimAppCommand {
+
+	private static final Logger log = LogManager.getLogger(EndlessCircleLineScheduleModifier.class);
+
+	@CommandLine.Option(names = {"--transit-schedule"}, description = "Path to the transit schedule file", required = true)
+	private String transitSchedulePath;
+	@CommandLine.Option(names = {"--transit-vehicles"}, description = "Path to the transit vehicles file", required = true)
+	private String transitVehiclesPath;
+	@CommandLine.Option(names = {"--network"}, description = "Path to the network file (for validation only)", required = false)
+	private String networkPath;
+	@CommandLine.Option(names = "--output-transit-schedule", description = "Path to the output transit schedule file", required = true)
+	private Path outputTransitSchedule;
+	@CommandLine.Option(names = "--output-transit-vehicles", description = "Path to the output transit vehicles file", required = true)
+	private Path outputTransitVehicles;
+
 	private TransitSchedule schedule;
-	private TransitScheduleFactory factory;
+	private Vehicles transitVehicles;
+	private TransitScheduleFactory transitScheduleFactory;
 
 	public static void main(String[] args) {
-		EndlessCircleLineScheduleModifier runner = new EndlessCircleLineScheduleModifier();
-		runner.run();
+		new EndlessCircleLineScheduleModifier().execute(args);
 	}
 
-	private void run() {
-		String inputScheduleFile = "../public-svn/matsim/scenarios/countries/de/berlin/berlin-v6.3/input/berlin-v6.3-transitSchedule.xml.gz";
-		String transitLineS41Id = "S41---4715";
-		String transitLineS42Id = "S42---5444";
-		// check with every schedule update transit route ids (still full loop?), headways, first departure time
-		String singleLoopingToCopyS41TransitRouteId = "S41---4715_0";// in berlin v6.3 schedule 200 departures, remaining S41 routes less than 8 deps each
-		String multipleLoopingsS41TransitRouteId1 = "S41---4715_loop1";
-		String multipleLoopingsS41TransitRouteId2 = "S41---4715_loop2";
+	@Override
+	public Integer call() throws Exception {
+		replaceS41S42With2LoopingRoutesEach();
+		return 0;
+	}
 
-		int vehIdOffset = 20; // TODO: hacky, get rid of this and cleanly add / remove transit vehicles
-
-		String singleLoopingToCopyS42TransitRouteId = "S42---5444_0";// in berlin v6.3 schedule 180 departures, remaining S42 routes less than 15 deps each
-		String multipleLoopingsS42TransitRouteId1 = "S42---5444_loop1";
-		String multipleLoopingsS42TransitRouteId2 = "S42---5444_loop2";
-
-		//departureTransitStopS41FacilityId = "469985" Beusselstr., link pt_46478 from pt_469985 to pt_469985 -> loop link, do not use. Unfortunately, other partial looping routes keep using it. Agents will either wait at this stop or the other and cannot switch freely.
-		//loopStartTransitStopS41FacilityId = "469985.1" Beusselstr., link pt_46505 from pt_16724 to pt_469985 -> connecting link, use this
-
+	private void replaceS41S42With2LoopingRoutesEach() {
+		/*
+		 * basic service pattern of the circle lines S41 and S42 is a 10 min headway service from 4:00 to 24:00 plus additional trains every 10 min
+		 * from circa. 5:30 to 20:20 reinforcing to a 5 min headway.
+		 *
+		 * Here as an example values from a 2023 timetable:
+		 * first S41---4715_0 departure at 4:08:24 in Beusselstr., then 10 min headway until 5:08:24, then 5 min until 20:18:24,
+		 * then 10 min headway until 23:58:24.
+		 *
+		 * S42 was similar to S41 in December 2024, but was more complex in 2023:
+		 * S42---5444_0 operated from 3:58:18 to,5:28:18 every 10 min, then every 5 min until 20:18:18, then every 10 min until 21:08:18.
+		 * Then 5444_1 every 10 min from 21:18.18 until 22:08:18 (65 min loop time!) and 5444_5 from 22:23:18 every 10 min until 24:33:18.
+		 *
+		 * For simplification implement 2 looping TransitRoutes per circle line, both every 10 min with approximated first and last departure times.
+		 */
 		double loopingTravelTime = 60 * 60.0;
-
-		// TODO: necessary? private double bufferTimeToCompensateLongerFirstLink = 2 * 60.0;  // if starting from a long
-
-		// first S41---4715_0 departure at 4:08:24 in Beusselstr., then 10 min headway until 5:08:24, then 5 min until 20:18:24, then 10 min headway until 23:58:24.
-		// for simplification and reducing number of concurrent transit routes and associated issues oif agents prefering one tranist route over others of the same transit line
-		// have one transit route reflecting a 5 min headway until 20:03:24, i.e. 4:08 dep starts last loop 19:08.
-		int numberLoopingsTransitRoute1 = 19-4;
-		double headwayTransitRoute1 = 5 * 60.0;
-		double firstDepartureTimeS41TransitRoute1 = 4 * 3600.0 + 8 * 60.0 + 24;
-		// then another transit route from 20:08 every 10 min until 23:58, i.e. 20:08 starts last loop at 23:08
-		int numberLoopingsTransitRoute2 = 23-20;
-		double headwayTransitRoute2 = 10 * 60.0;
-		double firstDepartureTimeS41TransitRoute2 = 20 * 3600.0 + 8 * 60.0 + 24;
-
-		// S42 is more complex. For simplificatrion re-use many S41 values for S42 despite differences
-		// to be precise S42---5444_0 operates from 3:58:18 to,5:28:18 every 10 min, then every 5 min until 20:18:18, then every 10 min until 21:08:18. Then 5444_1 every 10 min from 21:18.18 until 22:08:18 (65 min loop time!) and 5444_5 from 22:23:18 every 10 min until 24:33:18
-		double firstDepartureTimeS42TransitRoute1 = 3 * 3600.0 + 58 * 60.0 + 18;
-		double firstDepartureTimeS42TransitRoute2 = 19 * 3600.0 + 58 * 60.0 + 18;
-
-		String outputScheduleFile = "../public-svn/matsim/scenarios/countries/de/berlin/berlin-v6.3/input/berlin-v6.3-transitSchedule_endlessCircleLine.xml.gz";
+		double firstDepartureTime = 3 * 60 * 60 + 50 * 60;
+		double lastDepartureTime = 24 * 60 * 60 + 30 * 60;
+		double baseHeadway = 10 * 60;
+		double peakHeadwayStart = 5 * 60 * 60 + 20 * 60;
+		double peakHeadwayEnd = 20 * 60 * 60 + 20 * 60;
 
 		Scenario scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig());
-		TransitScheduleReader scheduleReader = new TransitScheduleReader(scenario);
-		scheduleReader.readFile(inputScheduleFile);
 		schedule = scenario.getTransitSchedule();
-		factory = schedule.getFactory();
+		transitScheduleFactory = schedule.getFactory();
+		transitVehicles = scenario.getTransitVehicles();
+		TransitScheduleReader scheduleReader = new TransitScheduleReader(scenario);
+		scheduleReader.readFile(transitSchedulePath);
+		MatsimVehicleReader vehicleReader = new MatsimVehicleReader(transitVehicles);
+		vehicleReader.readFile(transitVehiclesPath);
+
+		// attempt to find ids automatically (change with every new input gtfs file)
+		Tuple<Id<TransitLine>, Id<TransitRoute>> lineRouteS41 = findSingleLoopTransitRouteToCopy("S41");
+		Tuple<Id<TransitLine>, Id<TransitRoute>> lineRouteS42 = findSingleLoopTransitRouteToCopy("S42");
+
+		double typicalDepartureSecondS41 = findTypicalDepartureSecond(lineRouteS41.getFirst(), lineRouteS41.getSecond());
+		double typicalDepartureSecondS42 = findTypicalDepartureSecond(lineRouteS42.getFirst(), lineRouteS42.getSecond());
+
+		VehicleType vehicleType = findTypicalVehicleType(lineRouteS41.getFirst(), lineRouteS41.getSecond());
 
 		// S41
-		createLoopingTransitRoute(Id.create(transitLineS41Id, TransitLine.class),
-			Id.create(singleLoopingToCopyS41TransitRouteId, TransitRoute.class),
-			Id.create(multipleLoopingsS41TransitRouteId1, TransitRoute.class),
-			loopingTravelTime, numberLoopingsTransitRoute1, headwayTransitRoute1,
-			firstDepartureTimeS41TransitRoute1, 0);
+		createLoopingTransitRoute(lineRouteS41.getFirst(), lineRouteS41.getSecond(),
+			Id.create(lineRouteS41.getFirst() + "_loop", TransitRoute.class),
+			loopingTravelTime, getNumberOfLoopings(firstDepartureTime, lastDepartureTime, loopingTravelTime),
+			baseHeadway, firstDepartureTime + typicalDepartureSecondS41, vehicleType);
 
-		createLoopingTransitRoute(Id.create(transitLineS41Id, TransitLine.class),
-			Id.create(singleLoopingToCopyS41TransitRouteId, TransitRoute.class),
-			Id.create(multipleLoopingsS41TransitRouteId2, TransitRoute.class),
-			loopingTravelTime, numberLoopingsTransitRoute2, headwayTransitRoute2,
-			firstDepartureTimeS41TransitRoute2, vehIdOffset);
+		createLoopingTransitRoute(lineRouteS41.getFirst(), lineRouteS41.getSecond(),
+			Id.create(lineRouteS41.getFirst() + "_loop_peak", TransitRoute.class),
+			loopingTravelTime, getNumberOfLoopings(peakHeadwayStart, peakHeadwayEnd, loopingTravelTime),
+			baseHeadway, peakHeadwayStart + typicalDepartureSecondS41 + baseHeadway / 2, vehicleType);
+
+		// add early morning service on following day
+		createLoopingTransitRoute(lineRouteS41.getFirst(), lineRouteS41.getSecond(),
+			Id.create(lineRouteS41.getFirst() + "_loop+24h", TransitRoute.class),
+			loopingTravelTime, getNumberOfLoopings(firstDepartureTime + 24 * 3600, 30 * 3600, loopingTravelTime),
+			baseHeadway, firstDepartureTime + 24 * 3600 + typicalDepartureSecondS41, vehicleType);
 
 		// delete old non-looping transit route
-		schedule.getTransitLines().get(Id.create(transitLineS41Id, TransitLine.class)).removeRoute(schedule.getTransitLines().get(Id.create(transitLineS41Id, TransitLine.class)).getRoutes().get(Id.create(singleLoopingToCopyS41TransitRouteId, TransitRoute.class)));
+		removeOldTransitRouteAndItsVehicles(lineRouteS41.getFirst(), lineRouteS41.getSecond());
 
 		// S42
-		createLoopingTransitRoute(Id.create(transitLineS42Id, TransitLine.class),
-			Id.create(singleLoopingToCopyS42TransitRouteId, TransitRoute.class),
-			Id.create(multipleLoopingsS42TransitRouteId1, TransitRoute.class),
-			loopingTravelTime, numberLoopingsTransitRoute1, headwayTransitRoute1,
-			firstDepartureTimeS42TransitRoute1, 0);
+		createLoopingTransitRoute(lineRouteS42.getFirst(), lineRouteS42.getSecond(),
+			Id.create(lineRouteS42.getFirst() + "_loop", TransitRoute.class),
+			loopingTravelTime, getNumberOfLoopings(firstDepartureTime, lastDepartureTime, loopingTravelTime),
+			baseHeadway, firstDepartureTime + typicalDepartureSecondS42, vehicleType);
 
-		createLoopingTransitRoute(Id.create(transitLineS42Id, TransitLine.class),
-			Id.create(singleLoopingToCopyS42TransitRouteId, TransitRoute.class),
-			Id.create(multipleLoopingsS42TransitRouteId2, TransitRoute.class),
-			loopingTravelTime, numberLoopingsTransitRoute2, headwayTransitRoute2,
-			firstDepartureTimeS42TransitRoute2, vehIdOffset);
+		createLoopingTransitRoute(lineRouteS42.getFirst(), lineRouteS42.getSecond(),
+			Id.create(lineRouteS42.getFirst() + "_loop_peak", TransitRoute.class),
+			loopingTravelTime, getNumberOfLoopings(peakHeadwayStart, peakHeadwayEnd, loopingTravelTime),
+			baseHeadway, peakHeadwayStart + typicalDepartureSecondS42 + baseHeadway / 2, vehicleType);
 
-		// delete old non-looping transit route
-		schedule.getTransitLines().get(Id.create(transitLineS42Id, TransitLine.class)).removeRoute(schedule.getTransitLines().get(Id.create(transitLineS42Id, TransitLine.class)).getRoutes().get(Id.create(singleLoopingToCopyS42TransitRouteId, TransitRoute.class)));
+		// add early morning service on following day
+		createLoopingTransitRoute(lineRouteS42.getFirst(), lineRouteS42.getSecond(),
+			Id.create(lineRouteS42.getFirst() + "_loop+24h", TransitRoute.class),
+			loopingTravelTime, getNumberOfLoopings(firstDepartureTime + 24 * 3600, 30 * 3600, loopingTravelTime),
+			baseHeadway, firstDepartureTime + 24 * 3600 + typicalDepartureSecondS42, vehicleType);
 
+		removeOldTransitRouteAndItsVehicles(lineRouteS42.getFirst(), lineRouteS42.getSecond());
+
+		if (networkPath != null && !networkPath.isEmpty()) {
+			MatsimNetworkReader networkReader = new MatsimNetworkReader(scenario.getNetwork());
+			networkReader.readFile(networkPath);
+			TransitScheduleValidator.ValidationResult validationResult = TransitScheduleValidator.validateAll(schedule, scenario.getNetwork());
+			if (validationResult.isValid()) {
+				log.info("TransitSchedule is valid according to TransitScheduleValidator.");
+			} else {
+				log.error("TransitSchedule is invalid according to TransitScheduleValidator.");
+				for (TransitScheduleValidator.ValidationResult.ValidationIssue issue : validationResult.getIssues()) {
+					log.error(issue.getMessage());
+				}
+				throw new RuntimeException("invalid output schedule");
+			}
+		}
 
 		TransitScheduleWriter transitScheduleWriter = new TransitScheduleWriter(schedule);
-		transitScheduleWriter.writeFile(outputScheduleFile);
+		transitScheduleWriter.writeFile(outputTransitSchedule.toString());
+		MatsimVehicleWriter vehicleWriter = new MatsimVehicleWriter(transitVehicles);
+		vehicleWriter.writeFile(outputTransitVehicles.toString());
 	}
 
 	private void createLoopingTransitRoute(Id<TransitLine> transitLineId, Id<TransitRoute> singleLoopingToCopyTransitRouteId,
 										   Id<TransitRoute> loopingTransitRouteId,
-										   double loopingTravelTime, int numberLoopings,
-										   double headway, double firstDepartureTime, int vehIdOffset) {
+										   double loopingTravelTime, long numberLoopings,
+										   double headway, double firstDepartureTime,
+										   VehicleType vehicleType) {
 
 		TransitLine lineToModify = schedule.getTransitLines().get(transitLineId);
 		TransitRoute routeToCopy = lineToModify.getRoutes().get(singleLoopingToCopyTransitRouteId);
@@ -117,7 +163,7 @@ public class EndlessCircleLineScheduleModifier {
 		List<Id<Link>> loopingNetworkRouteLinks = new ArrayList<>();
 		List<TransitRouteStop> transitRouteStops = new ArrayList<>();
 		// add first stop manually
-		TransitRouteStop firstRouteStop = factory.createTransitRouteStop(
+		TransitRouteStop firstRouteStop = transitScheduleFactory.createTransitRouteStop(
 			routeToCopy.getStops().getLast().getStopFacility(),
 			routeToCopy.getStops().getFirst().getArrivalOffset(),
 			routeToCopy.getStops().getFirst().getDepartureOffset());
@@ -132,35 +178,118 @@ public class EndlessCircleLineScheduleModifier {
 
 			// skip first and last stop and add merged stop instead to avoid stopping twice at loopStartTransitStopId
 			for (TransitRouteStop stop : routeToCopy.getStops().subList(1, routeToCopy.getStops().size() - 1)) {
-				TransitRouteStop transitRouteStop = factory.createTransitRouteStop(stop.getStopFacility(),
+				TransitRouteStop transitRouteStop = transitScheduleFactory.createTransitRouteStop(stop.getStopFacility(),
 					stop.getArrivalOffset().seconds() + loopingsDone * loopingTravelTime,
 					stop.getDepartureOffset().seconds() + loopingsDone * loopingTravelTime);
 				transitRouteStop.setAwaitDepartureTime(true);
 				transitRouteStops.add(transitRouteStop);
 			}
 			// add last stop of this looping which is first stop of next looping
-			TransitRouteStop lastRouteStop = factory.createTransitRouteStop(
+			TransitRouteStop lastRouteStop = transitScheduleFactory.createTransitRouteStop(
 				routeToCopy.getStops().getLast().getStopFacility(),
-                    routeToCopy.getStops().getLast().getArrivalOffset().seconds() + loopingsDone * loopingTravelTime,
+				routeToCopy.getStops().getLast().getArrivalOffset().seconds() + loopingsDone * loopingTravelTime,
 				routeToCopy.getStops().getFirst().getDepartureOffset().seconds() + (loopingsDone + 1) * loopingTravelTime);
 			lastRouteStop.setAwaitDepartureTime(true);
 			transitRouteStops.add(lastRouteStop);
 		}
 		// at least for S41 and S42 last link in network route ends at same node as first link -> continuous
 		NetworkRoute networkRoute = RouteUtils.createNetworkRoute(loopingNetworkRouteLinks);
-		TransitRoute loopingRoute = factory.createTransitRoute(loopingTransitRouteId, networkRoute, transitRouteStops, "multiple loopings in one route");
+		TransitRoute loopingRoute = transitScheduleFactory.createTransitRoute(loopingTransitRouteId, networkRoute, transitRouteStops, "multiple loopings in one route");
 		loopingRoute.setTransportMode(routeToCopy.getTransportMode());
 
 		int departureIdCounter = 0;
 		for (double departureTime = firstDepartureTime; departureTime < firstDepartureTime + loopingTravelTime; departureTime = departureTime + headway) {
 			Id<Departure> departureId = Id.create(loopingTransitRouteId + "_" + departureIdCounter, Departure.class);
-			Departure departure = factory.createDeparture(departureId, departureTime);
-			// TODO: This makes assumptions on existing transit vehicles that are true for S41, S42. It would be cleaner be to create new vehicles and delete unused old ones and modify transit vehicles file.
-			departure.setVehicleId(Id.createVehicleId("pt_" + singleLoopingToCopyTransitRouteId + "_" + (departureIdCounter + vehIdOffset)));
+			Departure departure = transitScheduleFactory.createDeparture(departureId, departureTime);
+			// create new vehicles and delete unused old ones later.
+			Id<Vehicle> vehicleId = Id.createVehicleId("pt_" + loopingRoute.getId().toString() + "_" + departureIdCounter);
+			transitVehicles.getFactory().createVehicle(vehicleId, vehicleType);
+			departure.setVehicleId(vehicleId);
 			loopingRoute.addDeparture(departure);
 			departureIdCounter++;
 		}
 
 		lineToModify.addRoute(loopingRoute);
+	}
+
+	private VehicleType findTypicalVehicleType(Id<TransitLine> lineId, Id<TransitRoute> routeId) {
+		TransitRoute route = schedule.getTransitLines().get(lineId).getRoutes().get(routeId);
+		Optional<Departure> exampleDepartureOptional = route.getDepartures().values().stream()
+			// find a typical VehicleType, avoid early hours short train
+			.filter(dep -> dep.getDepartureTime() > 8 * 60 * 60 && dep.getDepartureTime() < 20 * 60 * 60)
+			.findFirst();
+		if (exampleDepartureOptional.isEmpty()) {
+			log.error("No suitable Departure found in line " + lineId.toString() + ", route " + routeId.toString() +
+				"to use as an example for the VehicleType to be used on the new endless looping TransitRoute.");
+			throw new RuntimeException("No suitable Departure found to define VehicleType.");
+		}
+		return transitVehicles.getVehicles().get(exampleDepartureOptional.get().getVehicleId()).getType();
+	}
+
+	private Tuple<Id<TransitLine>, Id<TransitRoute>> findSingleLoopTransitRouteToCopy(String lineName) {
+		List<Tuple<Id<TransitLine>, Id<TransitRoute>>> candidates = new ArrayList<>();
+		for (TransitLine line : schedule.getTransitLines().values()) {
+			if (line.getAttributes().getAttribute("gtfs_route_short_name").equals(lineName)) {
+				for (TransitRoute route : line.getRoutes().values()) {
+					if (route.getStops().getFirst().getStopFacility().getStopAreaId().equals(
+						route.getStops().getLast().getStopFacility().getStopAreaId()) &&
+						route.getStops().size() == 28 &&
+						route.getStops().getLast().getArrivalOffset().seconds() > 58 * 60 &&
+						route.getStops().getLast().getArrivalOffset().seconds() < 60 * 60 &&
+						route.getDepartures().size() > 100) {
+						// is looping, has all stops and has travel time ca. 60 min (not 65 min) and a significant number of departures
+						// usually there is only one looping TransitRoute *_0 with > 200 departures or two looping TransitRoutes, of which one has > 150 departures and operates all day and the other has < 30 departures.
+						candidates.add(new Tuple<>(line.getId(), route.getId()));
+					}
+				}
+			}
+		}
+
+		switch (candidates.size()) {
+			case 0:
+				log.error("No suitable circle line and route found that loops with the correct number of stops and travel time for line " + lineName +
+					". Check for construction work and timetable changes. A day with disturbed circle line is a bad choice.");
+				throw new RuntimeException("No suitable line and route found that loops with the correct number of stops and travel time for line " + lineName);
+			case 1:
+				return candidates.getFirst();
+			default:
+				log.error("Found multiple circle line candidates for " + lineName +
+					". This is unusual. Please check manually which is the best fit. Listing candidates here ");
+				for (Tuple<Id<TransitLine>, Id<TransitRoute>> tuple : candidates) {
+					log.error("line " + tuple.getFirst().toString() + ", route " + tuple.getSecond());
+				}
+				throw new RuntimeException("Aborting.");
+		}
+	}
+
+	/**
+	 * Find typical departure time offset from hour. This is important to keep waiting times and headways in respect to other lines similar.
+	 */
+	private double findTypicalDepartureSecond(Id<TransitLine> transitLineId, Id<TransitRoute> transitRouteId) {
+		TransitRoute transitRoute = schedule.getTransitLines().get(transitLineId).getRoutes().get(transitRouteId);
+		Map<Double, Integer> departureSecond2Count = new HashMap<>();
+		for (Departure departure : transitRoute.getDepartures().values()) {
+			// usually operates every 10 or 5 minutes, so % 3600 reduces by hours and % 600 reduces by 10 min headway
+			double offsetFromHour = (departure.getDepartureTime() % 3600) % 600;
+			departureSecond2Count.put(offsetFromHour, departureSecond2Count.getOrDefault(offsetFromHour, 0) + 1);
+		}
+		Optional<Map.Entry<Double, Integer>> mostFrequentDepartureSecond = departureSecond2Count.entrySet().stream()
+			.max(Comparator.comparingInt(Map.Entry::getValue));
+		// most frequent offset should be the one found during both 5 min and 10 min headways
+		if (mostFrequentDepartureSecond.isEmpty() || mostFrequentDepartureSecond.get().getValue() < 50) {
+			log.error("Could not determine typical departure time for " + transitLineId.toString() + ", " + transitRouteId.toString());
+			throw new RuntimeException("Could not determine typical departure time.");
+		}
+		return mostFrequentDepartureSecond.get().getKey();
+	}
+
+	private long getNumberOfLoopings(double firstDepartureTime, double lastDepartureTime, double loopTravelTime) {
+		return Math.round((lastDepartureTime - firstDepartureTime - loopTravelTime) / loopTravelTime);
+	}
+
+	private void removeOldTransitRouteAndItsVehicles(Id<TransitLine> transitLineId, Id<TransitRoute> transitRouteId) {
+		TransitRoute oldNonLoopingTransitRouteToDelete = schedule.getTransitLines().get(transitLineId).getRoutes().get(transitRouteId);
+		oldNonLoopingTransitRouteToDelete.getDepartures().values().forEach(dep -> transitVehicles.removeVehicle(dep.getVehicleId()));
+		schedule.getTransitLines().get(transitLineId).removeRoute(oldNonLoopingTransitRouteToDelete);
 	}
 }

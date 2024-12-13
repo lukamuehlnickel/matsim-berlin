@@ -125,6 +125,13 @@ $p/berlin-$V-network-with-pt.xml.gz: $p/berlin-$V-network.xml.gz
 	 $(germany)/gtfs/complete-pt-2023-06-06.zip\
 	 --shp $p/pt-area/pt-area.shp
 
+	$(sc) prepare endless-circle-line\
+ 	  --network $p/berlin-$V-network-with-pt.xml.gz\
+ 	  --transit-schedule $p/berlin-$V-transitSchedule.xml.gz\
+ 	  --transit-vehicles $p/berlin-$V-transitVehicles.xml.gz\
+ 	  --output-transit-schedule $p/berlin-$V-transitSchedule-endless-circle-line.xml.gz
+	  --output-transit-vehicles $p/berlin-$V-transitVehicles-endless-circle-line.xml.gz
+
 $p/berlin-$V-counts-vmz.xml.gz: $p/berlin-$V-network.xml.gz
 	$(sc) prepare counts-from-vmz\
 	 --excel ../shared-svn/projects/matsim-berlin/berlin-v5.5/original_data/vmz_counts_2018/Datenexport_2018_TU_Berlin.xlsx\
