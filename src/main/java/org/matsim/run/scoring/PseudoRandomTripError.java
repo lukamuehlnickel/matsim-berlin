@@ -12,7 +12,7 @@ public interface PseudoRandomTripError {
 	/**
 	 * Return a seed for a trip. The seed must be designed such that it is constant for the same choice situations.
 	 */
-	long getSeed(Id<Person> personId, String routingMode, TripStructureUtils.Trip trip);
+	long getSeed(Id<Person> personId, String mainMode, TripStructureUtils.Trip trip);
 
 
 }

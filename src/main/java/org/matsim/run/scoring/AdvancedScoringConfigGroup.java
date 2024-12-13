@@ -178,7 +178,7 @@ public final class AdvancedScoringConfigGroup extends ReflectiveConfigGroup {
 		public VariationType varDailyConstant = VariationType.fixed;
 
 		@Parameter
-		@Comment("total delta utility per dist group.")
+		@Comment("Total delta utility per dist group.")
 		public List<Double> deltaPerDistGroup;
 
 		public ModeParams() {

@@ -7,6 +7,7 @@ import org.apache.logging.log4j.Logger;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.population.Leg;
 import org.matsim.api.core.v01.population.Person;
+import org.matsim.core.router.MainModeIdentifier;
 import org.matsim.core.router.TripStructureUtils;
 import org.matsim.core.scoring.ScoringFunction;
 import org.matsim.core.scoring.SumScoringFunction;
@@ -21,13 +22,15 @@ public class PseudoRandomTripScoring implements SumScoringFunction.TripScoring {
 	private static final Logger log = LogManager.getLogger(PseudoRandomTripScoring.class);
 
 	private final Id<Person> id;
+	private final MainModeIdentifier mmi;
 	private final PseudoRandomScorer rng;
 
 	private final DoubleList scores = new DoubleArrayList();
 	private double score;
 
-	public PseudoRandomTripScoring(Id<Person> id, PseudoRandomScorer rng) {
+	public PseudoRandomTripScoring(Id<Person> id, MainModeIdentifier mmi, PseudoRandomScorer rng) {
 		this.id = id;
+		this.mmi = mmi;
 		this.rng = rng;
 	}
 
@@ -49,7 +52,8 @@ public class PseudoRandomTripScoring implements SumScoringFunction.TripScoring {
 			return;
 		}
 
-		double tripScore = rng.scoreTrip(id, legs.getFirst().getRoutingMode(), trip);
+		String mainMode = mmi.identifyMainMode(legs);
+		double tripScore = rng.scoreTrip(id, mainMode, trip);
 		scores.add(tripScore);
 		score += tripScore;
 	}

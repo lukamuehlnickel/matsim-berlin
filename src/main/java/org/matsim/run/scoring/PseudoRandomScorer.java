@@ -47,12 +47,12 @@ public final class PseudoRandomScorer {
 	/**
 	 * Calculates the pseudo random score of a trip.
 	 */
-	public double scoreTrip(Id<Person> personId, String routingMode, TripStructureUtils.Trip trip) {
+	public double scoreTrip(Id<Person> personId, String mainMode, TripStructureUtils.Trip trip) {
 
 		if (tripScore == null || scale == 0)
 			return 0;
 
-		long tripSeed = tripScore.getSeed(personId, routingMode, trip);
+		long tripSeed = tripScore.getSeed(personId, mainMode, trip);
 
 		// Need to create a new instance because reusing them will also create a lot of intermediate arrays
 		XoRoShiRo128PlusPlus rng = new XoRoShiRo128PlusPlus(seed, tripSeed);

@@ -10,14 +10,14 @@ import org.matsim.core.router.TripStructureUtils;
 public final class DefaultPseudoRandomTripError implements PseudoRandomTripError {
 
 	@Override
-	public long getSeed(Id<Person> personId, String routingMode, TripStructureUtils.Trip trip) {
+	public long getSeed(Id<Person> personId, String mainMode, TripStructureUtils.Trip trip) {
 
 		int personHash = personId.toString().hashCode();
 
-		int modeHash = routingMode.hashCode();
+		int modeHash = mainMode.hashCode();
 		int modeAndActHash = 31 * modeHash + trip.getOriginActivity().getType().hashCode();
 
 		// Combine two integers to long
-		return (long) personHash << 32 | modeAndActHash & 0xFFFFFFFFL;
+		return ((long) personHash << 32) | (modeAndActHash & 0xFFFFFFFFL);
 	}
 }

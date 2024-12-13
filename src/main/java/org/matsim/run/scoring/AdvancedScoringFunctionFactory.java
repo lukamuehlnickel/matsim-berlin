@@ -4,6 +4,7 @@ import com.google.inject.Inject;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
+import org.matsim.core.router.AnalysisMainModeIdentifier;
 import org.matsim.core.scoring.ScoringFunction;
 import org.matsim.core.scoring.ScoringFunctionFactory;
 import org.matsim.core.scoring.SumScoringFunction;
@@ -16,13 +17,16 @@ public class AdvancedScoringFunctionFactory implements ScoringFunctionFactory {
 
 	private final Config config;
 	private final AdvancedScoringConfigGroup scoring;
+	private final AnalysisMainModeIdentifier mmi;
 	private final ScoringParametersForPerson params;
 	private final PseudoRandomScorer pseudoRNG;
 
 	@Inject
-	public AdvancedScoringFunctionFactory(Config config, ScoringParametersForPerson params, PseudoRandomScorer pseudoRNG) {
+	public AdvancedScoringFunctionFactory(Config config, AnalysisMainModeIdentifier mmi,
+										  ScoringParametersForPerson params, PseudoRandomScorer pseudoRNG) {
 		this.config = config;
 		this.scoring = ConfigUtils.addOrGetModule(config, AdvancedScoringConfigGroup.class);
+		this.mmi = mmi;
 		this.params = params;
 		this.pseudoRNG = pseudoRNG;
 	}
@@ -35,7 +39,7 @@ public class AdvancedScoringFunctionFactory implements ScoringFunctionFactory {
 		sumScoringFunction.addScoringFunction(new CharyparNagelActivityScoring(parameters));
 
 		if (scoring.pseudoRamdomScale > 0) {
-			sumScoringFunction.addScoringFunction(new PseudoRandomTripScoring(person.getId(), pseudoRNG));
+			sumScoringFunction.addScoringFunction(new PseudoRandomTripScoring(person.getId(), mmi, pseudoRNG));
 		}
 
 		// replaced original leg scoring
