@@ -41,6 +41,8 @@ public class OpenBerlinChoiceExperiment extends OpenBerlinScenario {
 	@Override
 	protected Config prepareConfig(Config config) {
 
+		config = super.prepareConfig(config);
+
 		if (imc) {
 
 			InformedModeChoiceConfigGroup imcConfig = ConfigUtils.addOrGetModule(config, InformedModeChoiceConfigGroup.class);
