@@ -77,6 +77,10 @@
 					<groupId>xerces</groupId>
 					<artifactId>xercesImpl</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>com.github.matsim-org</groupId>
+					<artifactId>gtfs2matsim</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
