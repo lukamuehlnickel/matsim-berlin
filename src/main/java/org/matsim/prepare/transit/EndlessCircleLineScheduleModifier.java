@@ -70,6 +70,7 @@ public class EndlessCircleLineScheduleModifier implements MATSimAppCommand {
 		return 0;
 	}
 
+	@SuppressWarnings("rawtypes")
 	private void replaceS41S42With2LoopingRoutesEach() {
 		/*
 		 * basic service pattern of the circle lines S41 and S42 is a 10 min headway service from 4:00 to 24:00 plus additional trains every 10 min
@@ -86,11 +87,11 @@ public class EndlessCircleLineScheduleModifier implements MATSimAppCommand {
 		 * For simplification implement 2 looping TransitRoutes per circle line, both every 10 min with approximated first and last departure times.
 		 */
 		double loopingTravelTime = 60 * 60.0;
-		double firstDepartureTime = 3 * 60 * 60 + 50 * 60;
-		double lastDepartureTime = 24 * 60 * 60 + 30 * 60;
-		double baseHeadway = 10 * 60;
-		double peakHeadwayStart = 5 * 60 * 60 + 20 * 60;
-		double peakHeadwayEnd = 20 * 60 * 60 + 20 * 60;
+		double firstDepartureTime = 3 * 60 * 60. + 50 * 60.;
+		double lastDepartureTime = 24 * 60 * 60. + 30 * 60.;
+		double baseHeadway = 10 * 60.;
+		double peakHeadwayStart = 5 * 60 * 60. + 20 * 60.;
+		double peakHeadwayEnd = 20 * 60 * 60. + 20 * 60.;
 
 		Scenario scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig());
 		schedule = scenario.getTransitSchedule();
@@ -124,8 +125,8 @@ public class EndlessCircleLineScheduleModifier implements MATSimAppCommand {
 		// add early morning service on following day
 		createLoopingTransitRoute(lineRouteS41.getFirst(), lineRouteS41.getSecond(),
 			Id.create(lineRouteS41.getFirst() + "_loop+24h", TransitRoute.class),
-			loopingTravelTime, getNumberOfLoopings(firstDepartureTime + 24 * 3600, 30 * 3600, loopingTravelTime),
-			baseHeadway, firstDepartureTime + 24 * 3600 + typicalDepartureSecondS41, vehicleType);
+			loopingTravelTime, getNumberOfLoopings(firstDepartureTime + 24 * 3600., 30 * 3600., loopingTravelTime),
+			baseHeadway, firstDepartureTime + 24 * 3600. + typicalDepartureSecondS41, vehicleType);
 
 		// delete old non-looping transit route
 		removeOldTransitRouteAndItsVehicles(lineRouteS41.getFirst(), lineRouteS41.getSecond());
@@ -144,8 +145,8 @@ public class EndlessCircleLineScheduleModifier implements MATSimAppCommand {
 		// add early morning service on following day
 		createLoopingTransitRoute(lineRouteS42.getFirst(), lineRouteS42.getSecond(),
 			Id.create(lineRouteS42.getFirst() + "_loop+24h", TransitRoute.class),
-			loopingTravelTime, getNumberOfLoopings(firstDepartureTime + 24 * 3600, 30 * 3600, loopingTravelTime),
-			baseHeadway, firstDepartureTime + 24 * 3600 + typicalDepartureSecondS42, vehicleType);
+			loopingTravelTime, getNumberOfLoopings(firstDepartureTime + 24 * 3600., 30 * 3600., loopingTravelTime),
+			baseHeadway, firstDepartureTime + 24 * 3600. + typicalDepartureSecondS42, vehicleType);
 
 		removeOldTransitRouteAndItsVehicles(lineRouteS42.getFirst(), lineRouteS42.getSecond());
 
@@ -160,7 +161,7 @@ public class EndlessCircleLineScheduleModifier implements MATSimAppCommand {
 				for (TransitScheduleValidator.ValidationResult.ValidationIssue issue : validationResult.getIssues()) {
 					log.error(issue.getMessage());
 				}
-				throw new RuntimeException("invalid output schedule");
+				throw new IllegalStateException("invalid output schedule");
 			}
 		}
 
@@ -238,9 +239,9 @@ public class EndlessCircleLineScheduleModifier implements MATSimAppCommand {
 			.filter(dep -> dep.getDepartureTime() > 8 * 60 * 60 && dep.getDepartureTime() < 20 * 60 * 60)
 			.findFirst();
 		if (exampleDepartureOptional.isEmpty()) {
-			log.error("No suitable Departure found in line " + lineId.toString() + ", route " + routeId.toString() +
-				"to use as an example for the VehicleType to be used on the new endless looping TransitRoute.");
-			throw new RuntimeException("No suitable Departure found to define VehicleType.");
+			log.error("No suitable Departure found in line {}, route {} to use as an example for the VehicleType to be used on the new endless looping TransitRoute.",
+				lineId, routeId);
+			throw new IllegalStateException("No suitable Departure found to define VehicleType.");
 		}
 		return transitVehicles.getVehicles().get(exampleDepartureOptional.get().getVehicleId()).getType();
 	}
@@ -266,18 +267,16 @@ public class EndlessCircleLineScheduleModifier implements MATSimAppCommand {
 
 		switch (candidates.size()) {
 			case 0:
-				log.error("No suitable circle line and route found that loops with the correct number of stops and travel time for line " + lineName +
-					". Check for construction work and timetable changes. A day with disturbed circle line is a bad choice.");
-				throw new RuntimeException("No suitable line and route found that loops with the correct number of stops and travel time for line " + lineName);
+				log.error("No suitable circle line and route found that loops with the correct number of stops and travel time for line {}. Check for construction work and timetable changes. A day with disturbed circle line is a bad choice.", lineName);
+				throw new IllegalStateException("No suitable line and route found that loops with the correct number of stops and travel time for line " + lineName);
 			case 1:
 				return candidates.getFirst();
 			default:
-				log.error("Found multiple circle line candidates for " + lineName +
-					". This is unusual. Please check manually which is the best fit. Listing candidates here ");
+				log.error("Found multiple circle line candidates for {}. This is unusual. Please check manually which is the best fit. Listing candidates here ", lineName);
 				for (Tuple<Id<TransitLine>, Id<TransitRoute>> tuple : candidates) {
-					log.error("line " + tuple.getFirst().toString() + ", route " + tuple.getSecond());
+					log.error("line {}, route {}", tuple.getFirst(), tuple.getSecond());
 				}
-				throw new RuntimeException("Aborting.");
+				throw new IllegalStateException("Aborting.");
 		}
 	}
 
@@ -296,8 +295,8 @@ public class EndlessCircleLineScheduleModifier implements MATSimAppCommand {
 			.max(Comparator.comparingInt(Map.Entry::getValue));
 		// most frequent offset should be the one found during both 5 min and 10 min headways
 		if (mostFrequentDepartureSecond.isEmpty() || mostFrequentDepartureSecond.get().getValue() < 50) {
-			log.error("Could not determine typical departure time for " + transitLineId.toString() + ", " + transitRouteId.toString());
-			throw new RuntimeException("Could not determine typical departure time.");
+			log.error("Could not determine typical departure time for {}, {}", transitLineId, transitRouteId);
+			throw new IllegalStateException("Could not determine typical departure time.");
 		}
 		return mostFrequentDepartureSecond.get().getKey();
 	}
