@@ -135,8 +135,8 @@ $p/berlin-$V-network-with-pt.xml.gz: $p/berlin-$V-network.xml.gz
  	  --network $p/berlin-$V-network-with-pt.xml.gz\
  	  --transit-schedule $p/berlin-$V-transitSchedule.xml.gz\
  	  --transit-vehicles $p/berlin-$V-transitVehicles.xml.gz\
- 	  --output-transit-schedule $p/berlin-$V-transitSchedule-endless-circle-line.xml.gz\
-	  --output-transit-vehicles $p/berlin-$V-transitVehicles-endless-circle-line.xml.gz
+ 	  --output-transit-schedule $p/berlin-$V-transitSchedule.xml.gz\
+	  --output-transit-vehicles $p/berlin-$V-transitVehicles.xml.gz
 
 $p/berlin-$V-counts-vmz.xml.gz: $p/berlin-$V-network.xml.gz
 	$(sc) prepare counts-from-vmz\
@@ -357,5 +357,3 @@ prepare-drt: $p/berlin-$V.drt-by-rndLocations-10000vehicles-4seats.xml.gz
 
 prepare: $p/berlin-$V-10pct.plans.xml.gz
 	echo "Done"
-
-prepare-schedule: $p/berlin-$V-network-with-pt.xml.gz
