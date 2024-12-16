@@ -13,10 +13,10 @@ def person_filter(df):
 
     df["age"] = preparation.cut(df.age, [0, 12, 18, 25, 35, 66, np.inf])
 
-    preparation.fill(df, "economic_status", EconomicStatus.UNKNOWN)
     preparation.fill(df, "income", -1)
+    preparation.compute_economic_status(df)
 
-    df["income"] = preparation.cut(df.income, [0, 500, 900, 1500, 2000, 2600, 3000, 3600, 4600, 5600, np.inf])
+    df["income"] = preparation.cut(df.income / df.equivalent_size, [0, 250, 500, 750, 1000, 1250, 1500, 1750, 2000, 2500, 3000, 3500, np.inf])
 
     return df
 

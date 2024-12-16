@@ -311,7 +311,11 @@ public final class RunActivitySampling implements MATSimAppCommand, PersonAlgori
 	public void copyAttributes(CSVRecord row, Person person) {
 		PersonUtils.setCarAvail(person, row.get("car_avail").equals("True") ? "always" : "never");
 		PersonUtils.setLicence(person, row.get("driving_license").toLowerCase());
-		PersonUtils.setIncome(person, Math.max(499, Double.parseDouble(row.get("income"))));
+
+		double income = Double.parseDouble(row.get("income"));
+
+		// Define a minimum income
+		PersonUtils.setIncome(person, Math.max(249, (int) Math.round(income)));
 
 		person.getAttributes().putAttribute(Attributes.BIKE_AVAIL, row.get("bike_avail").equals("True") ? "always" : "never");
 		person.getAttributes().putAttribute(Attributes.PT_ABO_AVAIL, row.get("pt_abo_avail").equals("True") ? "always" : "never");
@@ -320,6 +324,8 @@ public final class RunActivitySampling implements MATSimAppCommand, PersonAlgori
 		person.getAttributes().putAttribute(Attributes.RESTRICTED_MOBILITY, row.get("restricted_mobility").equals("True"));
 		person.getAttributes().putAttribute(Attributes.ECONOMIC_STATUS, row.get("economic_status"));
 		person.getAttributes().putAttribute(Attributes.HOUSEHOLD_SIZE, Integer.parseInt(row.get("n_persons")));
+		person.getAttributes().putAttribute(Attributes.HOUSEHOLD_EQUIVALENT_SIZE, Double.parseDouble(row.get("equivalent_size")));
+		person.getAttributes().putAttribute(Attributes.HOUSEHOLD_TYPE, row.get("type"));
 	}
 
 	/**

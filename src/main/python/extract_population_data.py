@@ -5,7 +5,7 @@ import os
 import argparse
 
 from matsim.scenariogen.data import TripMode, read_all
-from matsim.scenariogen.data.preparation import prepare_persons, create_activities
+from matsim.scenariogen.data.preparation import fill, compute_economic_status, prepare_persons, create_activities
 
 if __name__ == "__main__":
 
@@ -25,6 +25,12 @@ if __name__ == "__main__":
 
     # Motorcycles are counted as cars
     trips.loc[trips.main_mode == TripMode.MOTORCYCLE, "main_mode"] = TripMode.CAR
+
+    # Impute missing values
+    fill(hh, "income", -1)
+    compute_economic_status(hh)
+
+    hh["income"] = hh.income / hh.equivalent_size
 
     hh.to_csv(args.output + "-households.csv")
     trips.to_csv(args.output + "-trips.csv")

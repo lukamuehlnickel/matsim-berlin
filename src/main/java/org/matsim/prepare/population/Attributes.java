@@ -45,6 +45,8 @@ public final class Attributes {
 	public static final String RESTRICTED_MOBILITY = "restricted_mobility";
 	public static final String ECONOMIC_STATUS = "economic_status";
 	public static final String HOUSEHOLD_SIZE = "household_size";
+	public static final String HOUSEHOLD_EQUIVALENT_SIZE = "household_equivalent_size";
+	public static final String HOUSEHOLD_TYPE = "household_type";
 	public static final String REF_MODES = TripAnalysis.ATTR_REF_MODES;
 	public static final String ATTRACTION_WORK = "attraction_work";
 	public static final String ATTRACTION_OTHER = "attraction_other";
