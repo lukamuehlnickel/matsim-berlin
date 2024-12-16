@@ -223,7 +223,8 @@ public class EndlessCircleLineScheduleModifier implements MATSimAppCommand {
 			Departure departure = transitScheduleFactory.createDeparture(departureId, departureTime);
 			// create new vehicles and delete unused old ones later.
 			Id<Vehicle> vehicleId = Id.createVehicleId("pt_" + loopingRoute.getId().toString() + "_" + departureIdCounter);
-			transitVehicles.getFactory().createVehicle(vehicleId, vehicleType);
+			Vehicle vehicle = transitVehicles.getFactory().createVehicle(vehicleId, vehicleType);
+			transitVehicles.addVehicle(vehicle);
 			departure.setVehicleId(vehicleId);
 			loopingRoute.addDeparture(departure);
 			departureIdCounter++;
