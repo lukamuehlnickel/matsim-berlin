@@ -10,6 +10,7 @@ import org.matsim.application.MATSimApplication;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.controler.Controler;
+import org.matsim.core.replanning.strategies.DefaultPlanStrategiesModule;
 import org.matsim.core.router.TripStructureUtils;
 import org.matsim.modechoice.InformedModeChoiceConfigGroup;
 import org.matsim.modechoice.InformedModeChoiceModule;
@@ -18,10 +19,14 @@ import org.matsim.modechoice.constraints.RelaxedMassConservationConstraint;
 import org.matsim.modechoice.estimators.DefaultActivityEstimator;
 import org.matsim.modechoice.estimators.DefaultLegScoreEstimator;
 import org.matsim.modechoice.estimators.FixedCostsEstimator;
+import org.matsim.modechoice.pruning.PlanScoreThresholdPruner;
 import org.matsim.run.OpenBerlinScenario;
 import org.matsim.run.scoring.AdvancedScoringConfigGroup;
+import org.matsim.run.scoring.PseudoRandomTripScoreEstimator;
 import org.matsim.vehicles.VehicleType;
 import picocli.CommandLine;
+
+import java.util.List;
 
 /**
  * This class can be used to run some synthetic mode choice experiments on the OpenBerlin scenario.
@@ -33,6 +38,13 @@ public class OpenBerlinChoiceExperiment extends OpenBerlinScenario {
 
 	@CommandLine.Option(names = "--imc", description = "Enable informed-mode-choice functionality")
 	private boolean imc;
+
+	@CommandLine.Option(names = "--imc-pruning", description = "Plan pruning threshold. If 0 pruning is disabled", defaultValue = "0")
+	private double pruning;
+
+	@CommandLine.Option(names = "--imc-strategy", description = "Mode choice strategy to use",
+		defaultValue = InformedModeChoiceModule.SELECT_SUBTOUR_MODE_STRATEGY)
+	private String strategy;
 
 	public static void main(String[] args) {
 		MATSimApplication.execute(OpenBerlinChoiceExperiment.class, args);
@@ -47,19 +59,20 @@ public class OpenBerlinChoiceExperiment extends OpenBerlinScenario {
 
 			InformedModeChoiceConfigGroup imcConfig = ConfigUtils.addOrGetModule(config, InformedModeChoiceConfigGroup.class);
 
+			imcConfig.setTopK(25);
+			imcConfig.setModes(List.of(config.subtourModeChoice().getModes()));
 			imcConfig.setConstraintCheck(InformedModeChoiceConfigGroup.ConstraintCheck.repair);
 
-			// TODO: enable pruning
+			InformedModeChoiceModule.replaceReplanningStrategy(config, "person",
+				DefaultPlanStrategiesModule.DefaultStrategy.SubtourModeChoice,
+				strategy
+			);
 
-			// TODO: replace strategy
+			if (pruning > 0)
+				imcConfig.setPruning("p" + pruning);
 
-			// TODO: start imc runs
-			// from uncalibrated population with baseline calibration
-
-			// next, with new mode scoring
-
-			// different number iterations x pruning thresholds/top k
-
+		} else if (pruning > 0) {
+			throw new IllegalArgumentException("Pruning is only available with informed-mode-choice enabled");
 		}
 
 		return config;
@@ -102,15 +115,11 @@ public class OpenBerlinChoiceExperiment extends OpenBerlinScenario {
 				.withFixedCosts(FixedCostsEstimator.DailyConstant.class, "car", "pt")
 				.withLegEstimator(DefaultLegScoreEstimator.class, ModeOptions.ConsiderIfCarAvailable.class, "car")
 				.withLegEstimator(DefaultLegScoreEstimator.class, ModeOptions.AlwaysAvailable.class, "pt", "walk", "bike", "ride")
+				.withPruner("p" + pruning, new PlanScoreThresholdPruner(pruning))
 				.withConstraint(RelaxedMassConservationConstraint.class);
 
 			if (ConfigUtils.hasModule(controler.getConfig(), AdvancedScoringConfigGroup.class)) {
-
-				// TODO: add pseudo random errors to estimator
-				// Implement pseudo trip scoring into informed mode choice
-
-				// TODO: option for pruning
-
+				builder.withTripScoreEstimator(PseudoRandomTripScoreEstimator.class);
 			}
 
 			controler.addOverridingModule(builder.build());
