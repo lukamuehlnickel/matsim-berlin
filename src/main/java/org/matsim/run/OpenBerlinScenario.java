@@ -147,20 +147,6 @@ public class OpenBerlinScenario extends MATSimApplication {
 		// add hbefa link attributes.
 		HbefaRoadTypeMapping roadTypeMapping = OsmHbefaMapping.build();
 		roadTypeMapping.addHbefaMappings(scenario.getNetwork());
-
-		// XXX: yyyyyyyy TODO Remove before merging. This is just for intermediate runs to update the PT schedules
-		for (Person person : scenario.getPopulation().getPersons().values()) {
-			for (Plan plan : person.getPlans()) {
-				List<Leg> legs = TripStructureUtils.getLegs(plan);
-				for (Leg leg : legs) {
-					if (leg.getMode().equals(TransportMode.pt)) {
-						leg.setRoute(null);
-						leg.setTravelTimeUndefined();
-					}
-				}
-			}
-		}
-
 	}
 
 	@Override
