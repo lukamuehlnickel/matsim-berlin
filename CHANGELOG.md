@@ -11,14 +11,20 @@ All notable changes to this project will be documented in this file.
 - Updated GTFS schedule
   - The schedule is now based on the 2024-11-19
   - Note that there are major changes how stops and links between them are created
-  - Stops having the same gtfs parent_id and route types are merged together, allowing agents to find better PT connections
-  - The PT network is created with loop links (on each PT stop) instead of duplicating stops, which also improves connections
+    - Stops having the same gtfs parent_id and route types are merged together, allowing agents to find better PT connections
+    - The PT network is created with loop links (on each PT stop) instead of duplicating stops, which also improves connections
+    - The Berlin Ringbahn is manually adjusted so that each train drives multiple loops the whole day
+- New income calculation
+  - In previous versions income was used directly as household income from the survey data
+  - Now, the income is calculated as personal equivalent income, which is the household income divided by equivalent household size
+    - See https://en.wikipedia.org/wiki/Equivalisation
+  - Corresponding attributes have been added to the population file
 - Bike mode updated and recalibrated
-  - Bike is now routed on the network, which provides better travel times
+  - Bike is now routed on the network, which results in more realistic travel distances
   - Bikes are not simulated on the network, and no link events generated yet. This will likely be added in future versions.
   - The road network includes bike infrastructure and corresponding attributes
   - The bike infrastructure is not fully complete yet, and has to be carefully evaluated first for bike centric studies
-  - The avg. bike speed has been set to match Srv2018 survey data
+  - The avg. bike speed has been set to match Srv2018 survey data (~10.3 km/h)
 - New dashboards 
   - PT Transit viewer
   - Emissions
