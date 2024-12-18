@@ -39,10 +39,13 @@ public class OpenBerlinChoiceExperiment extends OpenBerlinScenario {
 	@CommandLine.Option(names = "--imc", description = "Enable informed-mode-choice functionality")
 	private boolean imc;
 
-	@CommandLine.Option(names = "--imc-pruning", description = "Plan pruning threshold. If 0 pruning is disabled", defaultValue = "0")
+	@CommandLine.Option(names = "--pruning", description = "Plan pruning threshold. If 0 pruning is disabled", defaultValue = "0")
 	private double pruning;
 
-	@CommandLine.Option(names = "--imc-strategy", description = "Mode choice strategy to use",
+	@CommandLine.Option(names = "--top-k", description = "Top k value to use with IMC", defaultValue = "25")
+	private int topK;
+
+	@CommandLine.Option(names = "--strategy", description = "Mode choice strategy to use (imc needs to be enabled)",
 		defaultValue = InformedModeChoiceModule.SELECT_SUBTOUR_MODE_STRATEGY)
 	private String strategy;
 
@@ -59,7 +62,7 @@ public class OpenBerlinChoiceExperiment extends OpenBerlinScenario {
 
 			InformedModeChoiceConfigGroup imcConfig = ConfigUtils.addOrGetModule(config, InformedModeChoiceConfigGroup.class);
 
-			imcConfig.setTopK(25);
+			imcConfig.setTopK(topK);
 			imcConfig.setModes(List.of(config.subtourModeChoice().getModes()));
 			imcConfig.setConstraintCheck(InformedModeChoiceConfigGroup.ConstraintCheck.repair);
 
@@ -114,7 +117,9 @@ public class OpenBerlinChoiceExperiment extends OpenBerlinScenario {
 				.withActivityEstimator(DefaultActivityEstimator.class)
 				.withFixedCosts(FixedCostsEstimator.DailyConstant.class, "car", "pt")
 				.withLegEstimator(DefaultLegScoreEstimator.class, ModeOptions.ConsiderIfCarAvailable.class, "car")
-				.withLegEstimator(DefaultLegScoreEstimator.class, ModeOptions.AlwaysAvailable.class, "pt", "walk", "bike", "ride")
+				// Modes with fixed costs need to be considered separately
+				.withLegEstimator(DefaultLegScoreEstimator.class, ModeOptions.ConsiderYesAndNo.class, "pt")
+				.withLegEstimator(DefaultLegScoreEstimator.class, ModeOptions.AlwaysAvailable.class, "walk", "bike", "ride")
 				.withPruner("p" + pruning, new PlanScoreThresholdPruner(pruning))
 				.withConstraint(RelaxedMassConservationConstraint.class);
 
