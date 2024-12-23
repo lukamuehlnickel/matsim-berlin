@@ -9,6 +9,7 @@ import org.matsim.api.core.v01.population.Plan;
 import org.matsim.application.MATSimApplication;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
+import org.matsim.core.config.groups.ReplanningConfigGroup;
 import org.matsim.core.controler.Controler;
 import org.matsim.core.replanning.strategies.DefaultPlanStrategiesModule;
 import org.matsim.core.router.TripStructureUtils;
@@ -26,6 +27,7 @@ import org.matsim.run.scoring.PseudoRandomTripScoreEstimator;
 import org.matsim.vehicles.VehicleType;
 import picocli.CommandLine;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -53,6 +55,19 @@ public class OpenBerlinChoiceExperiment extends OpenBerlinScenario {
 		MATSimApplication.execute(OpenBerlinChoiceExperiment.class, args);
 	}
 
+	/**
+	 * Remove strategy from all subpopulations.
+	 */
+	private static void removeStrategy(Config config, String strategy) {
+
+		List<ReplanningConfigGroup.StrategySettings> strategies = new ArrayList<>(config.replanning().getStrategySettings());
+		strategies.removeIf(s -> s.getStrategyName().equals(strategy));
+
+		config.replanning().clearStrategySettings();
+
+		strategies.forEach(config.replanning()::addStrategySettings);
+	}
+
 	@Override
 	protected Config prepareConfig(Config config) {
 
@@ -70,6 +85,9 @@ public class OpenBerlinChoiceExperiment extends OpenBerlinScenario {
 				DefaultPlanStrategiesModule.DefaultStrategy.SubtourModeChoice,
 				strategy
 			);
+
+			// Experiments are without time mutation
+			removeStrategy(config, DefaultPlanStrategiesModule.DefaultStrategy.TimeAllocationMutator);
 
 			if (pruning > 0)
 				imcConfig.setPruning("p" + pruning);
