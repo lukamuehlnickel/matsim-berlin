@@ -11,6 +11,7 @@ import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.config.groups.ReplanningConfigGroup;
 import org.matsim.core.controler.Controler;
+import org.matsim.core.replanning.choosers.BalancedInnovationStrategyChooser;
 import org.matsim.core.replanning.strategies.DefaultPlanStrategiesModule;
 import org.matsim.core.router.TripStructureUtils;
 import org.matsim.modechoice.InformedModeChoiceConfigGroup;
@@ -46,6 +47,9 @@ public class OpenBerlinChoiceExperiment extends OpenBerlinScenario {
 
 	@CommandLine.Option(names = "--top-k", description = "Top k value to use with IMC", defaultValue = "25")
 	private int topK;
+
+	@CommandLine.Option(names = "--balanced-innovation", description = "Use balanced innovation selection", defaultValue = "false")
+	private boolean bi;
 
 	@CommandLine.Option(names = "--strategy", description = "Mode choice strategy to use (imc needs to be enabled)",
 		defaultValue = InformedModeChoiceModule.SELECT_SUBTOUR_MODE_STRATEGY)
@@ -128,6 +132,10 @@ public class OpenBerlinChoiceExperiment extends OpenBerlinScenario {
 	@Override
 	protected void prepareControler(Controler controler) {
 		super.prepareControler(controler);
+
+		if (bi) {
+			BalancedInnovationStrategyChooser.install(controler);
+		}
 
 		if (imc) {
 
