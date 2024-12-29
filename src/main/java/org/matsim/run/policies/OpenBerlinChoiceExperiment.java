@@ -96,6 +96,12 @@ public class OpenBerlinChoiceExperiment extends OpenBerlinScenario {
 				strategy
 			);
 
+			// All imc strategies are run with best score selector
+			InformedModeChoiceModule.replaceReplanningStrategy(config,
+				DefaultPlanStrategiesModule.DefaultSelector.ChangeExpBeta,
+				DefaultPlanStrategiesModule.DefaultSelector.BestScore
+			);
+
 			// Experiments are without time mutation
 			removeStrategy(config, DefaultPlanStrategiesModule.DefaultStrategy.TimeAllocationMutator);
 
