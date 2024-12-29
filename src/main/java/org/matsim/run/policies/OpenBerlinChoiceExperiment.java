@@ -51,6 +51,9 @@ public class OpenBerlinChoiceExperiment extends OpenBerlinScenario {
 	@CommandLine.Option(names = "--balanced-innovation", description = "Use balanced innovation selection", defaultValue = "false")
 	private boolean bi;
 
+	@CommandLine.Option(names = "--inv-beta", description = "Beta inv value for selection", defaultValue = "-1")
+	private double invBeta;
+
 	@CommandLine.Option(names = "--strategy", description = "Mode choice strategy to use (imc needs to be enabled)",
 		defaultValue = InformedModeChoiceModule.SELECT_SUBTOUR_MODE_STRATEGY)
 	private String strategy;
@@ -84,6 +87,9 @@ public class OpenBerlinChoiceExperiment extends OpenBerlinScenario {
 			imcConfig.setTopK(topK);
 			imcConfig.setModes(List.of(config.subtourModeChoice().getModes()));
 			imcConfig.setConstraintCheck(InformedModeChoiceConfigGroup.ConstraintCheck.repair);
+
+			if (invBeta >= 0)
+				imcConfig.setInvBeta(invBeta);
 
 			InformedModeChoiceModule.replaceReplanningStrategy(config, "person",
 				DefaultPlanStrategiesModule.DefaultStrategy.SubtourModeChoice,
