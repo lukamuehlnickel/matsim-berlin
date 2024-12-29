@@ -1,7 +1,7 @@
 package org.matsim.prepare.choices;
 
 import org.jetbrains.annotations.Nullable;
-import org.matsim.modechoice.CandidateGenerator;
+import org.matsim.api.core.v01.population.Plan;
 import org.matsim.modechoice.ModeEstimate;
 import org.matsim.modechoice.PlanCandidate;
 import org.matsim.modechoice.PlanModel;
@@ -12,7 +12,7 @@ import java.util.*;
 /**
  * Generates random candidates.
  */
-public class RandomPlanGenerator implements CandidateGenerator {
+public class RandomPlanGenerator implements ChoiceGenerator {
 
 	private final int topK;
 	private final TopKChoicesGenerator gen;
@@ -24,7 +24,7 @@ public class RandomPlanGenerator implements CandidateGenerator {
 	}
 
 	@Override
-	public List<PlanCandidate> generate(PlanModel planModel, @Nullable Set<String> consideredModes, @Nullable boolean[] mask) {
+	public List<PlanCandidate> generate(Plan plan, PlanModel planModel, @Nullable Set<String> consideredModes) {
 
 		List<String[]> chosen = new ArrayList<>();
 		chosen.add(planModel.getCurrentModes());
@@ -47,7 +47,7 @@ public class RandomPlanGenerator implements CandidateGenerator {
 
 		List<PlanCandidate> result = new ArrayList<>();
 		result.add(existing);
-		result.addAll(gen.generate(planModel, consideredModes, mask));
+		result.addAll(gen.generate(planModel, consideredModes, null));
 
 		return result.stream().distinct().limit(topK).toList();
 	}

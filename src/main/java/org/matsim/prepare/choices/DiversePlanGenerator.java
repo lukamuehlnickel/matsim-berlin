@@ -1,8 +1,7 @@
 package org.matsim.prepare.choices;
 
-import org.jetbrains.annotations.Nullable;
+import org.matsim.api.core.v01.population.Plan;
 import org.matsim.core.population.PersonUtils;
-import org.matsim.modechoice.CandidateGenerator;
 import org.matsim.modechoice.PlanCandidate;
 import org.matsim.modechoice.PlanModel;
 import org.matsim.modechoice.search.TopKChoicesGenerator;
@@ -12,7 +11,7 @@ import java.util.*;
 /**
  * Generator to create candidates with different modes.
  */
-public class DiversePlanGenerator implements CandidateGenerator {
+public class DiversePlanGenerator implements ChoiceGenerator {
 
 	private final int topK;
 	private final TopKChoicesGenerator gen;
@@ -24,7 +23,7 @@ public class DiversePlanGenerator implements CandidateGenerator {
 	}
 
 	@Override
-	public List<PlanCandidate> generate(PlanModel planModel, @Nullable Set<String> consideredModes, @Nullable boolean[] mask) {
+	public List<PlanCandidate> generate(Plan plan, PlanModel planModel, Set<String> consideredModes) {
 
 		List<String[]> chosen = new ArrayList<>();
 		chosen.add(planModel.getCurrentModes());
@@ -40,7 +39,7 @@ public class DiversePlanGenerator implements CandidateGenerator {
 			if (!carUser && mode.equals("car"))
 				continue;
 
-			List<PlanCandidate> tmp = gen.generate(planModel, Set.of(mode), mask);
+			List<PlanCandidate> tmp = gen.generate(planModel, Set.of(mode), null);
 			if (!tmp.isEmpty())
 				candidates.add(tmp.get(0));
 		}
@@ -48,12 +47,12 @@ public class DiversePlanGenerator implements CandidateGenerator {
 		candidates.addFirst(existing);
 
 		// Add combination of modes as well
-		addToCandidates(candidates, gen.generate(planModel, modes, mask), carUser ? "car" : "ride", 1);
-		addToCandidates(candidates, gen.generate(planModel, consideredModes, mask), null, 1);
+		addToCandidates(candidates, gen.generate(planModel, modes, null), carUser ? "car" : "ride", 1);
+		addToCandidates(candidates, gen.generate(planModel, consideredModes, null), null, 1);
 
 		// Remove the primary mode to generate remaining alternatives
 		modes.remove(carUser ? "car" : "ride");
-		addToCandidates(candidates, gen.generate(planModel, modes, mask), null, 2);
+		addToCandidates(candidates, gen.generate(planModel, modes, null), null, 2);
 
 		return candidates.stream().distinct().limit(this.topK).toList();
 	}

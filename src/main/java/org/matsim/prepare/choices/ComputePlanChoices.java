@@ -141,7 +141,8 @@ public class ComputePlanChoices implements MATSimAppCommand, PersonAlgorithm {
 		controler.addOverridingModule(InformedModeChoiceModule.newBuilder()
 			.withFixedCosts(FixedCostsEstimator.DailyConstant.class, "car", "pt")
 			.withLegEstimator(DefaultLegScoreEstimator.class, ModeOptions.ConsiderIfCarAvailable.class, "car")
-			.withLegEstimator(DefaultLegScoreEstimator.class, ModeOptions.AlwaysAvailable.class, "bike", "walk", "pt", "ride")
+			.withLegEstimator(DefaultLegScoreEstimator.class, ModeOptions.ConsiderYesAndNo.class, "pt")
+			.withLegEstimator(DefaultLegScoreEstimator.class, ModeOptions.AlwaysAvailable.class, "bike", "walk", "ride")
 			.withConstraint(RelaxedMassConservationConstraint.class)
 			.build());
 
@@ -288,7 +289,7 @@ public class ComputePlanChoices implements MATSimAppCommand, PersonAlgorithm {
 		row.add(1);
 		row.add(model.trips());
 
-		List<PlanCandidate> candidates = ctx.generator.generate(model, modes, null);
+		List<PlanCandidate> candidates = ctx.generator.generate(plan, model, modes);
 
 		// skip possible error cases
 		if (candidates == null) {
@@ -404,6 +405,6 @@ public class ComputePlanChoices implements MATSimAppCommand, PersonAlgorithm {
 	private record ModeStats(int usage, double travelTime, double travelDistance, double rideTime, long numSwitches) {
 	}
 
-	private record Ctx(PlanRouter router, CandidateGenerator generator, PseudoScorer scorer) {
+	private record Ctx(PlanRouter router, ChoiceGenerator generator, PseudoScorer scorer) {
 	}
 }
