@@ -10,6 +10,7 @@ import org.matsim.application.MATSimApplication;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.config.groups.ReplanningConfigGroup;
+import org.matsim.core.config.groups.VspExperimentalConfigGroup;
 import org.matsim.core.controler.Controler;
 import org.matsim.core.replanning.choosers.BalancedInnovationStrategyChooser;
 import org.matsim.core.replanning.strategies.DefaultPlanStrategiesModule;
@@ -101,6 +102,9 @@ public class OpenBerlinChoiceExperiment extends OpenBerlinScenario {
 				DefaultPlanStrategiesModule.DefaultSelector.ChangeExpBeta,
 				DefaultPlanStrategiesModule.DefaultSelector.BestScore
 			);
+
+			// Best score requires disabling consistency checking
+			config.vspExperimental().setVspDefaultsCheckingLevel(VspExperimentalConfigGroup.VspDefaultsCheckingLevel.warn);
 
 			// Experiments are without time mutation
 			removeStrategy(config, DefaultPlanStrategiesModule.DefaultStrategy.TimeAllocationMutator);

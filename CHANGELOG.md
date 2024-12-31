@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file. 
 
-### 6.4 (2024-12)
+### 6.4 (2025-01)
 - Improved facility locations
   - OSM tag filtering has been improved to reduce number of wrongly assigned facility types
 - Update work location assignment within Berlin
@@ -24,7 +24,7 @@ All notable changes to this project will be documented in this file.
   - Bikes are not simulated on the network, and no link events generated yet. This will likely be added in future versions.
   - The road network includes bike infrastructure and corresponding attributes
   - The bike infrastructure is not fully complete yet, and has to be carefully evaluated first for bike centric studies
-  - The avg. bike speed has been set to match Srv2018 survey data (~10.3 km/h)
+  - The avg. bike speed has been set to match SrV2018 survey data (~10.3 km/h)
 - New dashboards 
   - PT Transit viewer
   - Emissions

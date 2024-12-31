@@ -7,10 +7,7 @@ import org.matsim.run.OpenBerlinScenario;
 import org.matsim.simwrapper.Dashboard;
 import org.matsim.simwrapper.DashboardProvider;
 import org.matsim.simwrapper.SimWrapper;
-import org.matsim.simwrapper.dashboard.EmissionsDashboard;
-import org.matsim.simwrapper.dashboard.TrafficCountsDashboard;
-import org.matsim.simwrapper.dashboard.TravelTimeComparisonDashboard;
-import org.matsim.simwrapper.dashboard.TripDashboard;
+import org.matsim.simwrapper.dashboard.*;
 
 import java.util.List;
 import java.util.Set;
@@ -32,6 +29,7 @@ public class BerlinDashboardProvider implements DashboardProvider {
 			trips,
 			new TravelTimeComparisonDashboard(ApplicationUtils.resolve(config.getContext(), "berlin-v" + OpenBerlinScenario.VERSION + "-routes-ref.csv.gz")),
 			new EmissionsDashboard(config.global().getCoordinateSystem()),
+			new NoiseDashboard(config.global().getCoordinateSystem()),
 			new TrafficCountsDashboard()
 				.withModes(TransportMode.car, Set.of(TransportMode.car))
 				.withModes(TransportMode.truck, Set.of(TransportMode.truck, "freight"))

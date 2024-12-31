@@ -329,13 +329,18 @@ $p/berlin-$V-25pct.plans-initial.xml.gz: $p/berlin-$V-facilities.xml.gz $p/berli
 
 $p/berlin-$V-10pct.plans.xml.gz:
 	$(sc) prepare clean-population\
-	 --plans mode-choice-10pct-default-v2/runs/008/008.output_plans.xml.gz\
+	 --plans mode-choice-10pct-baseline/runs/008/008.output_plans.xml.gz\
 	 --remove-unselected-plans\
 	 --output $@
 
 	$(sc) prepare downsample-population $@\
 		--sample-size 0.1\
-		--samples 0.03 0.01 0.001\
+		--samples 0.01 0.001\
+
+	$(sc) prepare clean-population\
+	 	--plans choice-experiments/baseline/runs/008/008.output_plans.xml.gz\
+	 	--remove-unselected-plans\
+	 	--output $(subst 10pct,3pct,$@)
 
 
 $p/berlin-$V.drt-by-rndLocations-10000vehicles-4seats.xml.gz: $p/berlin-$V-network.xml.gz
