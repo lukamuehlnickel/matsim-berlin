@@ -48,6 +48,7 @@ import org.matsim.core.controler.Controler;
 import org.matsim.core.population.routes.RouteFactories;
 import org.matsim.core.router.AnalysisMainModeIdentifier;
 import org.matsim.core.router.MainModeIdentifier;
+import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.extensions.pt.fare.intermodalTripFareCompensator.IntermodalTripFareCompensatorConfigGroup;
 import org.matsim.extensions.pt.fare.intermodalTripFareCompensator.IntermodalTripFareCompensatorsConfigGroup;
 import org.matsim.extensions.pt.fare.intermodalTripFareCompensator.IntermodalTripFareCompensatorsModule;
@@ -218,13 +219,21 @@ public class OpenBerlinDrtScenario extends OpenBerlinScenario {
 	}
 
 	@Override
-	protected void prepareScenario(Scenario scenario) {
-		super.prepareScenario(scenario);
+	protected Scenario createScenario(Config config) {
+		Scenario scenario = ScenarioUtils.createScenario(config);
 
 		//if the input plans contain DrtRoutes, this will cause problems later in the DrtRouteFactory
 		//to avoid this, the DrtRouteFactory would have to get set before loading the scenario, just like in Open Berlin v5.x
 		RouteFactories routeFactories = scenario.getPopulation().getFactory().getRouteFactories();
 		routeFactories.setRouteFactory(DrtRoute.class, new DrtRouteFactory());
+
+		ScenarioUtils.loadScenario(scenario);
+		return scenario;
+	}
+
+	@Override
+	protected void prepareScenario(Scenario scenario) {
+		super.prepareScenario(scenario);
 
 		//if the drt mode is configured as a dvrp network mode and if it has a service area
 		//the drt mode is added to the links in the service area with a buffer of +2000 meter (per default or otherwise configured in BerlinExperimentalConfigGroup)
