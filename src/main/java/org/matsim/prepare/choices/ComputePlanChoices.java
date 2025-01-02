@@ -96,6 +96,7 @@ public class ComputePlanChoices implements MATSimAppCommand, PersonAlgorithm {
 	}
 
 	@Override
+	@SuppressWarnings("JavaNCSS")
 	public Integer call() throws Exception {
 
 		if (!output.getFileName().toString().contains(".csv")) {
@@ -217,6 +218,11 @@ public class ComputePlanChoices implements MATSimAppCommand, PersonAlgorithm {
 					header.add(String.format("plan_%d_%s_ride_hours", i, mode));
 					header.add(String.format("plan_%d_%s_n_switches", i, mode));
 				}
+
+				for (int j = 0; j < maxPlanLength; j++) {
+					header.add("plan_%d_trip_%d_mode".formatted(i, j));
+				}
+
 				header.add(String.format("plan_%d_act_util", i));
 				header.add(String.format("plan_%d_valid", i));
 			}
@@ -335,20 +341,34 @@ public class ComputePlanChoices implements MATSimAppCommand, PersonAlgorithm {
 			for (String ignored : modes) {
 				row.addAll(List.of(0, 0, 0, 0, 0));
 			}
+
+			for (int j = 0; j < maxPlanLength; j++) {
+				row.add(-1);
+			}
+
 			row.add(0);
 
 			return row;
 		}
 
-		Map<String, ModeStats> stats = collect(plan);
+		AggrModeInfo info = collect(plan);
 
 		for (String mode : modes) {
-			ModeStats modeStats = stats.get(mode);
+			ModeStats modeStats = info.stats.get(mode);
 			row.add(modeStats.usage);
 			row.add(modeStats.travelDistance / 1000);
 			row.add(modeStats.travelTime / 3600);
 			row.add(modeStats.rideTime / 3600);
 			row.add(modeStats.numSwitches);
+		}
+
+		// Fill information of used modes
+		for (int j = 0; j < maxPlanLength; j++) {
+			if (j < info.modes.size()) {
+				row.add(info.modes.get(j));
+			} else {
+				row.add(-1);
+			}
 		}
 
 		if (calcScores)
@@ -362,10 +382,12 @@ public class ComputePlanChoices implements MATSimAppCommand, PersonAlgorithm {
 	/**
 	 * Collect aggregated mode stats.
 	 */
-	private Map<String, ModeStats> collect(Plan plan) {
+	private AggrModeInfo collect(Plan plan) {
 
+		List<String> usedModes = new ArrayList<>();
 		Map<String, ModeStats> stats = new HashMap<>();
 
+		List<TripStructureUtils.Trip> trips = TripStructureUtils.getTrips(plan);
 		for (String mode : modes) {
 
 			int usage = 0;
@@ -374,7 +396,7 @@ public class ComputePlanChoices implements MATSimAppCommand, PersonAlgorithm {
 			double travelDistance = 0;
 			long switches = 0;
 
-			for (TripStructureUtils.Trip trip : TripStructureUtils.getTrips(plan)) {
+			for (TripStructureUtils.Trip trip : trips) {
 				List<Leg> legs = trip.getLegsOnly();
 				String mainMode = mmi.identifyMainMode(legs);
 				if (mode.equals(mainMode)) {
@@ -392,7 +414,11 @@ public class ComputePlanChoices implements MATSimAppCommand, PersonAlgorithm {
 			stats.put(mode, new ModeStats(usage, travelTime, travelDistance, rideTime, switches));
 		}
 
-		return stats;
+		for (TripStructureUtils.Trip trip : trips) {
+			usedModes.add(mmi.identifyMainMode(trip.getLegsOnly()));
+		}
+
+		return new AggrModeInfo(usedModes, stats);
 	}
 
 	/**
@@ -400,6 +426,9 @@ public class ComputePlanChoices implements MATSimAppCommand, PersonAlgorithm {
 	 */
 	public enum PlanCandidates {
 		bestK, diverse, random, carAlternative, subtour
+	}
+
+	private record AggrModeInfo(List<String> modes, Map<String, ModeStats> stats) {
 	}
 
 	private record ModeStats(int usage, double travelTime, double travelDistance, double rideTime, long numSwitches) {

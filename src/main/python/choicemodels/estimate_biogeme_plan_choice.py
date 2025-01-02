@@ -9,7 +9,7 @@ import biogeme.database as db
 import biogeme.models as models
 from biogeme.expressions import Beta, bioDraws, log, MonteCarlo
 
-from prepare import read_plan_choices, tn_generator
+from prepare import read_plan_choices, tn_generator, gumbel_generator
 
 ESTIMATE = 0
 FIXED = 1
@@ -50,7 +50,8 @@ if __name__ == "__main__":
     v = database.variables
 
     database.setRandomNumberGenerators({
-        "TN": (tn_generator, "truncated normal generator for mixed logit")
+        "TN": (tn_generator, "truncated normal generator for mixed logit"),
+        "GUMBEL": (gumbel_generator, "Gumbel generator for mixed logit")
     })
 
     fixed_ascs = {x: float(y) for x, y in args.ascs}
@@ -111,12 +112,18 @@ if __name__ == "__main__":
         print("Estimating car asc, instead of daily utility")
         B_CAR = 0
 
+    EC = {}
     if args.est_error_component:
         print("Estimating error component")
-        B_ERROR_S = Beta('B_ERROR_S', 0.5, None, None, ESTIMATE)
-        B_ERROR = B_ERROR_S * bioDraws('B_ERROR_RND', 'NORMAL')
-    else:
-        B_ERROR = 0
+
+        # Draw modes x trips random terms
+        for m in ds.modes:
+            EC[m] = []
+
+            for j in range(7):
+                EC[m].append(bioDraws(f"ec_{m}_{j}", "NORMAL_ANTI"))
+
+        EC_S = Beta("ec_s", 0.5, 0, None, ESTIMATE)
 
     print("Using MXL modes", args.mxl_modes)
     U = {}
@@ -124,7 +131,6 @@ if __name__ == "__main__":
 
     for i in range(1, ds.k + 1):
         # Price is already negative
-
         perceived_price = (BETA_CAR_PRICE_PERCEPTION * v[f"plan_{i}_car_price"] +
                            BETA_PT_PRICE_PERCEPTION * v[f"plan_{i}_pt_price"] +
                            v[f"plan_{i}_other_price"])
@@ -138,7 +144,15 @@ if __name__ == "__main__":
 
         u += v[f"plan_{i}_car_used"] * B_CAR
 
-        U[i] = u + B_ERROR * v["n_trips"]
+        if args.est_error_component:
+            errs = 0
+            for mode in ds.modes:
+                for j in range(7):
+                    errs += v[f"plan_{i}_trip_{j}_mode_{mode}"] * EC[mode][j]
+
+            u += EC_S * errs
+
+        U[i] = u
         AV[i] = v[f"plan_{i}_valid"]
 
     if args.no_mxl:
@@ -166,6 +180,8 @@ if __name__ == "__main__":
         modelName += "_price_perception_car"
     if args.est_price_perception_pt:
         modelName += "_price_perception_pt"
+    if args.est_error_component:
+        modelName += "_ec"
 
     biogeme.modelName = modelName
     biogeme.weight = v["weight"]

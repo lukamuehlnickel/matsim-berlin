@@ -63,6 +63,7 @@ public final class PseudoRandomScorer {
 		return switch (distribution) {
 			case gumbel -> sampleGumbel(rng, 0, scale);
 			case normal -> sampleNormal(rng, 0, scale);
+			case eulerGammaNormal -> sampleNormal(rng, 0.5772156649015329, scale);
 			default -> throw new IllegalStateException("Unsupported distribution: " + distribution);
 		};
 	}
