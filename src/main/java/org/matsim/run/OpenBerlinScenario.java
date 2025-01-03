@@ -18,6 +18,7 @@ import org.matsim.contrib.vsp.scoring.RideScoringParamsFromCarParams;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.config.groups.ReplanningConfigGroup;
+import org.matsim.core.config.groups.VspExperimentalConfigGroup;
 import org.matsim.core.controler.AbstractModule;
 import org.matsim.core.controler.Controler;
 import org.matsim.core.replanning.strategies.DefaultPlanStrategiesModule;
@@ -119,6 +120,11 @@ public class OpenBerlinScenario extends MATSimApplication {
 				.setWeight(0.15)
 				.setSubpopulation("person")
 		);
+
+		// Need to switch to warning for best score
+		if (planSelector.equals(DefaultPlanStrategiesModule.DefaultSelector.BestScore)) {
+			config.vspExperimental().setVspDefaultsCheckingLevel(VspExperimentalConfigGroup.VspDefaultsCheckingLevel.warn);
+		}
 
 		// Bicycle config must be present
 		ConfigUtils.addOrGetModule(config, BicycleConfigGroup.class);

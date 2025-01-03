@@ -91,11 +91,7 @@ public final class AdvancedScoringConfigGroup extends ReflectiveConfigGroup {
 	 * Variate values with random draw from specific distribution.
 	 */
 	public enum VariationType {
-		fixed, normal, truncatedNormal, gumbel,
-		/**
-		 * Normal with mean at 0.5772 (Euler–Mascheroni constant). Can be used as coarse approximation to gumbel.
-		 */
-		eulerGammaNormal
+		fixed, normal, truncatedNormal, gumbel
 	}
 
 	/**

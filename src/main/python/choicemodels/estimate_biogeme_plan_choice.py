@@ -27,7 +27,8 @@ if __name__ == "__main__":
     parser.add_argument("--exp-income", help="Exponent for income", type=float, default=1)
     parser.add_argument("--util-money", help="Utility of money", type=float, default=1)
     parser.add_argument("--est-util-money", help="Estimate utility of money", action="store_true")
-    parser.add_argument("--est-error-component", help="Add a normal error component to each trip choice",  action="store_true")
+    parser.add_argument("--est-error-component", help="Add a normal error component to each trip choice", action="store_true")
+    parser.add_argument("--ec", help="Factor for error component", type=float, default=None)
     parser.add_argument("--est-price-perception-car", help="Estimate price perception", action="store_true")
     parser.add_argument("--est-price-perception-pt", help="Estimate price perception", action="store_true")
     parser.add_argument("--same-price-perception", help="Only estimate one fixed price perception factor", action="store_true")
@@ -123,7 +124,10 @@ if __name__ == "__main__":
             for j in range(7):
                 EC[m].append(bioDraws(f"ec_{m}_{j}", "NORMAL_ANTI"))
 
-        EC_S = Beta("ec_s", 0.5, 0, None, ESTIMATE)
+        if args.ec is None:
+            EC_S = Beta("ec_s", 0.5, 0, None, ESTIMATE)
+        else:
+            EC_S = args.ec
 
     print("Using MXL modes", args.mxl_modes)
     U = {}
