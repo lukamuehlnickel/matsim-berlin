@@ -1,5 +1,7 @@
 package org.matsim.run.policies;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.TransportMode;
@@ -37,6 +39,8 @@ import java.util.List;
  */
 public class OpenBerlinChoiceExperiment extends OpenBerlinScenario {
 
+	private static final Logger log = LogManager.getLogger(OpenBerlinChoiceExperiment.class);
+
 	@CommandLine.Option(names = "--bike-speed-offset", description = "Offset the default bike speed in km/h", defaultValue = "0")
 	private double bikeSpeedOffset;
 
@@ -51,6 +55,9 @@ public class OpenBerlinChoiceExperiment extends OpenBerlinScenario {
 
 	@CommandLine.Option(names = "--balanced-innovation", description = "Use balanced innovation selection", defaultValue = "false")
 	private boolean bi;
+
+	@CommandLine.Option(names = "--act-est", description = "Include estimation of activity utilities into score", defaultValue = "true")
+	private boolean actEst;
 
 	@CommandLine.Option(names = "--inv-beta", description = "Beta inv value for selection", defaultValue = "-1")
 	private double invBeta;
@@ -128,6 +135,8 @@ public class OpenBerlinChoiceExperiment extends OpenBerlinScenario {
 		// These times will be recalculated by the router
 		if (bikeSpeedOffset != 0) {
 
+			log.info("Adjusting bike speed by {} km/h", bikeSpeedOffset);
+
 			VehicleType bike = scenario.getVehicles().getVehicleTypes().get(Id.create(TransportMode.bike, VehicleType.class));
 			bike.setMaximumVelocity(bike.getMaximumVelocity() + bikeSpeedOffset / 3.6);
 
@@ -150,13 +159,13 @@ public class OpenBerlinChoiceExperiment extends OpenBerlinScenario {
 		super.prepareControler(controler);
 
 		if (bi) {
+			log.info("Using balanced innovation strategy chooser");
 			BalancedInnovationStrategyChooser.install(controler);
 		}
 
 		if (imc) {
 
 			InformedModeChoiceModule.Builder builder = InformedModeChoiceModule.newBuilder()
-				.withActivityEstimator(DefaultActivityEstimator.class)
 				.withFixedCosts(FixedCostsEstimator.DailyConstant.class, "car", "pt")
 				.withLegEstimator(DefaultLegScoreEstimator.class, ModeOptions.ConsiderIfCarAvailable.class, "car")
 				// Modes with fixed costs need to be considered separately
@@ -165,7 +174,13 @@ public class OpenBerlinChoiceExperiment extends OpenBerlinScenario {
 				.withPruner("p" + pruning, new PlanScoreThresholdPruner(pruning))
 				.withConstraint(RelaxedMassConservationConstraint.class);
 
+			if (actEst) {
+				log.info("Including activity estimation into score");
+				builder.withActivityEstimator(DefaultActivityEstimator.class);
+			}
+
 			if (ConfigUtils.hasModule(controler.getConfig(), AdvancedScoringConfigGroup.class)) {
+				log.info("Using pseudo-random trip score estimator");
 				builder.withTripScoreEstimator(PseudoRandomTripScoreEstimator.class);
 			}
 
