@@ -33,6 +33,7 @@ if __name__ == "__main__":
     parser.add_argument("--est-price-perception-pt", help="Estimate price perception", action="store_true")
     parser.add_argument("--same-price-perception", help="Only estimate one fixed price perception factor", action="store_true")
     parser.add_argument("--price-perception", help="Given value for fixed price perception", type=float, default=1)
+    parser.add_argument("--effort", help="Additional time utility", nargs="+", action='append', default=[])
     parser.add_argument("--ascs", help="Predefined ASCs", nargs="+", action='append', default=[])
     parser.add_argument("--car-util", help="Fixed utility for car", type=float, default=None)
     parser.add_argument("--no-income", help="Don't consider the income", action="store_true")
@@ -58,6 +59,10 @@ if __name__ == "__main__":
     fixed_ascs = {x: float(y) for x, y in args.ascs}
     if fixed_ascs:
         print("Using fixed ascs", fixed_ascs)
+
+    effort = {x: float(y) for x, y in args.effort}
+    if effort:
+        print("Using time effort", effort)
 
     # Variables for constants
     ASC = {}
@@ -148,6 +153,10 @@ if __name__ == "__main__":
 
         u += v[f"plan_{i}_car_used"] * B_CAR
 
+        # Add the effort component (additional time disutility)
+        for mode, val in effort.items():
+            u -= v[f"plan_{i}_{mode}_hours"] * val
+
         if args.est_error_component:
             errs = 0
             for mode in ds.modes:
@@ -178,6 +187,8 @@ if __name__ == "__main__":
         modelName += "_util_money"
     if args.ascs:
         modelName += "_fixed_ascs"
+    if effort:
+        modelName += "_effort"
     if args.no_income:
         modelName += "_no_income"
     if args.est_price_perception_car:
