@@ -4,6 +4,7 @@
 import argparse
 import os
 
+import numpy as np
 import biogeme.biogeme as bio
 import biogeme.database as db
 import biogeme.models as models
@@ -62,6 +63,11 @@ if __name__ == "__main__":
 
     effort = {x: float(y) for x, y in args.effort}
     if effort:
+        # Nan values are estimated
+        for mode in effort:
+            if np.isnan(effort[mode]):
+                effort[mode] = Beta(f"BETA_DIST_{mode}", 0, None, None, ESTIMATE)
+
         print("Using time effort", effort)
 
     # Variables for constants

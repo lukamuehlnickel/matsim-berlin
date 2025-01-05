@@ -56,7 +56,8 @@ public class OpenBerlinChoiceExperiment extends OpenBerlinScenario {
 	@CommandLine.Option(names = "--balanced-innovation", description = "Use balanced innovation selection", defaultValue = "false")
 	private boolean bi;
 
-	@CommandLine.Option(names = "--act-est", description = "Include estimation of activity utilities into score", defaultValue = "true")
+	@CommandLine.Option(names = "--no-act-est", description = "Include estimation of activity utilities into score", defaultValue = "true",
+			negatable = true)
 	private boolean actEst;
 
 	@CommandLine.Option(names = "--inv-beta", description = "Beta inv value for selection", defaultValue = "-1")
@@ -177,6 +178,8 @@ public class OpenBerlinChoiceExperiment extends OpenBerlinScenario {
 			if (actEst) {
 				log.info("Including activity estimation into score");
 				builder.withActivityEstimator(DefaultActivityEstimator.class);
+			} else {
+				log.info("No activity estimation for score");
 			}
 
 			if (ConfigUtils.hasModule(controler.getConfig(), AdvancedScoringConfigGroup.class)) {
