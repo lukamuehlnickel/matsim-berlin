@@ -139,10 +139,9 @@ public class OpenBerlinDrtScenario extends OpenBerlinScenario {
 
 		for (TransitStopFacility stop : transitSchedule.getFacilities().values()) {
 			if (stop.getAttributes().getAttribute(oldFilterAttribute) != null) {
-				if (stop.getAttributes().getAttribute(oldFilterAttribute).equals(oldFilterValue)) {
-					if (serviceAreas.stream().anyMatch(geom -> geom.contains(MGC.coord2Point(stop.getCoord())))) {
-						stop.getAttributes().putAttribute(newAttributeName, newAttributeValue);
-					}
+				if (stop.getAttributes().getAttribute(oldFilterAttribute).equals(oldFilterValue) &&
+					serviceAreas.stream().anyMatch(geom -> geom.contains(MGC.coord2Point(stop.getCoord())))) {
+					stop.getAttributes().putAttribute(newAttributeName, newAttributeValue);
 				}
 			}
 		}

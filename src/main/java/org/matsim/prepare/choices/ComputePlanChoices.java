@@ -74,8 +74,8 @@ public class ComputePlanChoices implements MATSimAppCommand, PersonAlgorithm {
 	@CommandLine.Option(names = "--calc-scores", description = "Perform pseudo scoring for each plan", defaultValue = "false")
 	private boolean calcScores;
 
-	@CommandLine.Option(names = "--plan-candidates", description = "Method to generate plan candidates", defaultValue = "bestK")
-	private PlanCandidates planCandidates = PlanCandidates.bestK;
+	@CommandLine.Option(names = "--plan-candidates", description = "Method to generate plan candidates", defaultValue = "subtour")
+	private PlanCandidates planCandidates = PlanCandidates.subtour;
 
 	@CommandLine.Option(names = "--max-plan-length", description = "Maximum plan length", defaultValue = "7")
 	private int maxPlanLength;

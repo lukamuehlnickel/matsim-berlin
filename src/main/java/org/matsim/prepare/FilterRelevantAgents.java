@@ -41,11 +41,14 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 
+/**
+ * Use {@link org.matsim.application.prepare.scenario.CreateScenarioCutOut} instead.
+ */
 @CommandLine.Command(
 	name = "filter-relevant-agents",
 	description = "Filter agents that have any activities or routes within the shp file."
 )
-@Deprecated
+@Deprecated(forRemoval = true, since = "6.4")
 public class FilterRelevantAgents implements MATSimAppCommand, PersonAlgorithm {
 
 	private static final Logger log = LogManager.getLogger(FilterRelevantAgents.class);

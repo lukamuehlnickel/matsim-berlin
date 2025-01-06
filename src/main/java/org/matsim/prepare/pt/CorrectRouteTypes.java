@@ -11,12 +11,12 @@ import java.util.regex.Pattern;
 @SuppressWarnings("unused")
 public class CorrectRouteTypes implements Consumer<Route> {
 
-	private static final Pattern ICE = Pattern.compile("ICE [0-9]+");
-	private static final Pattern IC = Pattern.compile("(IC|EC) [0-9]+");
-	private static final Pattern RE = Pattern.compile("((RE|RB[0-9]+)|FEX|^RE)");
+	private static final Pattern ICE = Pattern.compile("ICE \\d+");
+	private static final Pattern IC = Pattern.compile("(IC|EC) \\d+");
+	private static final Pattern RE = Pattern.compile("((RE|RB\\d+)|FEX|^RE)");
 
-	private static final Pattern S_BAHN = Pattern.compile("S[0-9]+");
-	private static final Pattern U_BAHN = Pattern.compile("U[0-9]+");
+	private static final Pattern S_BAHN = Pattern.compile("S\\d+");
+	private static final Pattern U_BAHN = Pattern.compile("U\\d+");
 
 	@Override
 	public void accept(Route route) {

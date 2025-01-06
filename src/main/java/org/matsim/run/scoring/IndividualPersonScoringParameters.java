@@ -92,12 +92,12 @@ public class IndividualPersonScoringParameters implements ScoringParametersForPe
 		this.cache = new IdMap<>(Person.class, scenario.getPopulation().getPersons().size());
 
 		// Create uncorrelated seed from the global seed
-		SplittableRandom rnd = new SplittableRandom(scenario.getConfig().global().getRandomSeed());
-		for (int i = 0; i < rnd.nextInt(); i++) {
-			rnd.nextLong();
+		SplittableRandom rng = new SplittableRandom(scenario.getConfig().global().getRandomSeed());
+		for (int i = 0; i < rng.nextInt(); i++) {
+			rng.nextLong();
 		}
 
-		byte[] seed = Longs.toByteArray(rnd.nextLong());
+		byte[] seed = Longs.toByteArray(rng.nextLong());
 		this.rnd = ThreadLocal.withInitial(() -> new Context(seed));
 	}
 
