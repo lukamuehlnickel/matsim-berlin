@@ -81,7 +81,7 @@ public class OpenBerlinDrtScenario extends OpenBerlinScenario {
 	private static final Logger log = LogManager.getLogger(OpenBerlinDrtScenario.class);
 
 	@CommandLine.Option(names = "--drt-config",
-		defaultValue = "input/v" + OpenBerlinScenario.VERSION + "/berlin-v" + OpenBerlinScenario.VERSION +".drt-config.xml",
+		defaultValue = "input/v" + OpenBerlinScenario.VERSION + "/berlin-v" + OpenBerlinScenario.VERSION + ".drt-config.xml",
 		description = "Path to drt (only) config. Should contain only additional stuff to base config. Otherwise overrides.")
 	private String drtConfig;
 
@@ -148,11 +148,11 @@ public class OpenBerlinDrtScenario extends OpenBerlinScenario {
 		}
 	}
 
-	public static void addDRTMode(Scenario scenario, String drtNetworkMode, String drtServiceAreaShapeFile, double buffer) {
+	private static void addDRTMode(Scenario scenario, String drtNetworkMode, String drtServiceAreaShapeFile, double buffer) {
 
 		log.info("Adjusting network...");
 
-		ShpOptions shp = new ShpOptions( drtServiceAreaShapeFile, null, null);
+		ShpOptions shp = new ShpOptions(drtServiceAreaShapeFile, null, null);
 		List<Geometry> serviceAreas = new ArrayList<>();
 		for (SimpleFeature ft : shp.readFeatures()) {
 			Geometry geom = (Geometry) ft.getDefaultGeometry();
