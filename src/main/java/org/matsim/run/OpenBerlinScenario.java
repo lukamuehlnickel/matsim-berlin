@@ -2,6 +2,7 @@ package org.matsim.run;
 
 import com.google.inject.Key;
 import com.google.inject.name.Names;
+import org.matsim.analysis.QsimTimingModule;
 import org.matsim.analysis.personMoney.PersonMoneyEventsAnalysisModule;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.TransportMode;
