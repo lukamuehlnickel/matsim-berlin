@@ -203,16 +203,12 @@ public final class RunDrtOpenBerlinScenario {
 					counterOutside++;
 				}
 
-			} else if (link.getAllowedModes().contains(TransportMode.pt)) {
-				// skip pt links
-			} else {
-				throw new RuntimeException("Aborting...");
 			}
 		}
 
-		log.info("Total links: " + counter);
-		log.info("Total links inside service area: " + counterInside);
-		log.info("Total links outside service area: " + counterOutside);
+		log.info("Total links: {}", counter);
+		log.info("Total links inside service area: {}", counterInside);
+		log.info("Total links outside service area: {}", counterOutside);
 
 		Set<String> modes = new HashSet<>();
 		modes.add(drtNetworkMode);
