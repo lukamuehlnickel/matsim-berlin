@@ -157,6 +157,8 @@ public class OpenBerlinScenario extends MATSimApplication {
 
 		controler.addOverridingModule(new TravelTimeBinding());
 
+		controler.addOverridingModule(new QsimTimingModule());
+
 		// AdvancedScoring is specific to matsim-berlin!
 		if (ConfigUtils.hasModule(controler.getConfig(), AdvancedScoringConfigGroup.class)) {
 			controler.addOverridingModule(new AdvancedScoringModule());
