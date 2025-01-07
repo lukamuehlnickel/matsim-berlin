@@ -3,7 +3,8 @@
 ![JDK](https://img.shields.io/badge/JDK-21+-green.svg)
 
 # The MATSim Open Berlin Scenario
-![Berlin MATSim network and agents)](input/visualization.png "MATSim Open Berlin network, vehicles and activities")
+
+![MATSim Open Berlin network, vehicles and activities](input/visualization.png "MATSim Open Berlin")
 
 ## About this project
 
