@@ -39,7 +39,7 @@ Handling of large files within git is not without problems (git lfs files are no
 
 1. Open SimWrapper at https://simwrapper.github.io/site/ .
 1. Select Explore Data Sources -> VSP Public-SVN .
-1. Navigate to de -> berlin -> berlin-v6.4 (https://simwrapper.github.io/site/public/de/berlin/berlin-v6.4).
+1. Navigate to de -> berlin -> berlin-v6.4 -> output (https://simwrapper.github.io/site/public/de/berlin/berlin-v6.4/output/berlin-v6.4-10pct/).
 1. Enjoy the dashboards and visualizations.
 
 ### Run VIA on output files
@@ -99,7 +99,7 @@ This will download all necessary dependencies (it might take a while the first t
 java -jar [FILENAME].jar
 ``
 1. A simple GUI should open.
-1. In the GUI, click on the "Choose" button for configuration file.  Navigate to one of the `scenario` directories and load one of the configuration files.
+1. In the GUI, click on the "Choose" button for configuration file.  Navigate to one of the `input` directories and load one of the configuration files.
 1. Increase memory in the GUI.
 1. Press the "Start MATSim" button.  This should run MATSim.  Note that MATSim accepts URLs as filenames in its config, so while the config files are part of the git repo, running them will pull additional material from our server.
 1. "Open" the output directory.  You can drag files into VIA as was already done above.
@@ -113,7 +113,7 @@ java -jar [FILENAME].jar
 
 1. Set up the project in your IDE.
 1. Make sure the project is configured as maven project.
-1. Run the JAVA class `src/main/java/org/matsim/run/RunOpenBerlinScenario.java` or `src/main/java/org/matsim/gui/RunOpenBerlinScenarioGUI.java`.
+1. Run the JAVA class `src/main/java/org/matsim/run/RunOpenBerlinScenario.java`.
 1. "Open" the output directory.  You can drag files into VIA as was already done above.
 1. Edit the config file or adjust the run class. Re-run MATSim.
 </details>
