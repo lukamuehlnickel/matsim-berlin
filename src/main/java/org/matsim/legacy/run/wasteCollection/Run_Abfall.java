@@ -230,8 +230,8 @@ public class Run_Abfall {
 
 		controler.run();
 
-		new CarrierPlanXmlWriterV2(carriers)
-				.write(scenario.getConfig().controller().getOutputDirectory() + "/output_CarrierPlans.xml");
+//		new CarrierPlanXmlWriterV2(carriers)
+//				.write(scenario.getConfig().controller().getOutputDirectory() + "/output_CarrierPlans.xml");
 
 		AbfallUtils.outputSummary(districtsWithGarbage, scenario, carrierMap, day, volumeDustbinInLiters,
 				secondsServiceTimePerDustbin);

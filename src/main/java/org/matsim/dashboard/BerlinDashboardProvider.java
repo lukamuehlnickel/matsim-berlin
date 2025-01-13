@@ -7,9 +7,7 @@ import org.matsim.run.OpenBerlinScenario;
 import org.matsim.simwrapper.Dashboard;
 import org.matsim.simwrapper.DashboardProvider;
 import org.matsim.simwrapper.SimWrapper;
-import org.matsim.simwrapper.dashboard.TrafficCountsDashboard;
-import org.matsim.simwrapper.dashboard.TravelTimeComparisonDashboard;
-import org.matsim.simwrapper.dashboard.TripDashboard;
+import org.matsim.simwrapper.dashboard.*;
 
 import java.util.List;
 import java.util.Set;
@@ -24,11 +22,14 @@ public class BerlinDashboardProvider implements DashboardProvider {
 		TripDashboard trips = new TripDashboard("mode_share_ref.csv", "mode_share_per_dist_ref.csv", "mode_users_ref.csv")
 			.setAnalysisArgs("--match-id", "^berlin.+", "--shp-filter", "none")
 			.withChoiceEvaluation(true)
+			.withDistanceDistribution("mode_share_distance_distribution.csv")
 			.withGroupedRefData("mode_share_per_group_dist_ref.csv", "age", "income", "employment", "economic_status");
 
 		return List.of(
 			trips,
 			new TravelTimeComparisonDashboard(ApplicationUtils.resolve(config.getContext(), "berlin-v" + OpenBerlinScenario.VERSION + "-routes-ref.csv.gz")),
+			new EmissionsDashboard(config.global().getCoordinateSystem()),
+			new NoiseDashboard(config.global().getCoordinateSystem()),
 			new TrafficCountsDashboard()
 				.withModes(TransportMode.car, Set.of(TransportMode.car))
 				.withModes(TransportMode.truck, Set.of(TransportMode.truck, "freight"))

@@ -21,13 +21,21 @@ public final class Attributes {
 	 * Gemeinde code.
 	 */
 	public static final String GEM = "gem";
-	public static final String ARS = "ars";
-
 
 	/**
-	 * LOR for Berlin.
+	 * Amtliche Regionalschlüssel (ARS).
+	 */
+	public static final String ARS = "ars";
+
+	/**
+	 * Lebensweltlich orientierte Räume (LOR) for Berlin. / Zonal system of Berlin.
 	 */
 	public static final String LOR = "lor";
+
+	/**
+	 * Zonal code, in Berlin this is the district number.
+	 */
+	public static final String ZONE = "zone";
 
 	public static final String RegioStaR7 = "RegioStaR7";
 
@@ -37,6 +45,8 @@ public final class Attributes {
 	public static final String RESTRICTED_MOBILITY = "restricted_mobility";
 	public static final String ECONOMIC_STATUS = "economic_status";
 	public static final String HOUSEHOLD_SIZE = "household_size";
+	public static final String HOUSEHOLD_EQUIVALENT_SIZE = "household_equivalent_size";
+	public static final String HOUSEHOLD_TYPE = "household_type";
 	public static final String REF_MODES = TripAnalysis.ATTR_REF_MODES;
 	public static final String ATTRACTION_WORK = "attraction_work";
 	public static final String ATTRACTION_OTHER = "attraction_other";

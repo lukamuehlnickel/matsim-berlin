@@ -9,7 +9,6 @@ import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.population.*;
 import org.matsim.application.MATSimAppCommand;
-import org.matsim.application.options.CsvOptions;
 import org.matsim.core.population.PersonUtils;
 import org.matsim.core.population.PopulationUtils;
 import org.matsim.core.population.algorithms.ParallelPersonAlgorithmUtils;
@@ -18,6 +17,9 @@ import org.matsim.core.router.TripStructureUtils;
 import org.matsim.prepare.RunOpenBerlinCalibration;
 import picocli.CommandLine;
 
+import java.io.IOException;
+import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.*;
 
@@ -28,7 +30,6 @@ import java.util.*;
 public final class RunActivitySampling implements MATSimAppCommand, PersonAlgorithm {
 
 	private static final Logger log = LogManager.getLogger(RunActivitySampling.class);
-	private final CsvOptions csv = new CsvOptions(CSVFormat.Predefined.Default);
 
 	/**
 	 * Maps person index to list of activities.
@@ -45,7 +46,6 @@ public final class RunActivitySampling implements MATSimAppCommand, PersonAlgori
 	private Path activityPath;
 	@CommandLine.Option(names = "--seed", description = "Seed used to sample plans", defaultValue = "1")
 	private long seed;
-	private ThreadLocal<Context> ctxs;
 
 	private PopulationFactory factory;
 	private PersonMatcher matcher;
@@ -64,156 +64,16 @@ public final class RunActivitySampling implements MATSimAppCommand, PersonAlgori
 		this.activities.putAll(activities);
 		this.factory = factory;
 		this.seed = seed;
-		this.ctxs = ThreadLocal.withInitial(() -> new Context(new SplittableRandom(seed)));
 	}
 
 	public static void main(String[] args) {
 		new RunActivitySampling().execute(args);
 	}
 
-	@Override
-	public Integer call() throws Exception {
-
-		Population population = PopulationUtils.readPopulation(input.toString());
-
-		matcher = new PersonMatcher("idx", personsPath);
-
-		try (CSVParser parser = csv.createParser(activityPath)) {
-			readActivities(parser);
-		}
-
-		ctxs = ThreadLocal.withInitial(() -> new Context(new SplittableRandom(seed)));
-		factory = population.getFactory();
-
-		ParallelPersonAlgorithmUtils.run(population, 8, this);
-
-		PopulationUtils.writePopulation(population, output.toString());
-
-		double atHome = 0;
-		for (Person person : population.getPersons().values()) {
-			List<Leg> legs = TripStructureUtils.getLegs(person.getSelectedPlan());
-			if (legs.isEmpty())
-				atHome++;
-		}
-
-		int size = population.getPersons().size();
-		double mobile = (size - atHome) / size;
-
-		log.info("Processed {} persons, mobile persons: {}%", size, 100 * mobile);
-
-		return 0;
-	}
-
-	private void readActivities(CSVParser csv) {
-
-		String currentId = null;
-		List<CSVRecord> current = null;
-
-		int i = 0;
-		for (CSVRecord r : csv) {
-
-			String pId = r.get("p_id");
-
-			if (!Objects.equals(pId, currentId)) {
-				if (current != null)
-					activities.put(currentId, current);
-
-				currentId = pId;
-				current = new ArrayList<>();
-			}
-
-			current.add(r);
-			i++;
-		}
-
-		if (current != null && !current.isEmpty()) {
-			activities.put(currentId, current);
-		}
-
-		log.info("Read {} activities for {} persons", i, activities.size());
-	}
-
-
-	@Override
-	public void run(Person person) {
-
-		SplittableRandom rnd = ctxs.get().rnd;
-
-		String idx = matcher.matchPerson(person, rnd);
-		CSVRecord row = matcher.getPerson(idx);
-
-		copyAttributes(row, person);
-
-		String mobile = row.get("mobile_on_day");
-
-		// ensure mobile agents have a valid plan
-		switch (mobile.toLowerCase()) {
-
-			case "true" -> {
-				List<CSVRecord> activities = this.activities.get(idx);
-
-				if (activities == null)
-					throw new AssertionError("No activities for mobile person " + idx);
-
-				if (activities.size() == 0)
-					throw new AssertionError("Activities for mobile agent can not be empty.");
-
-				person.removePlan(person.getSelectedPlan());
-				Plan plan = createPlan(Attributes.getHomeCoord(person), activities, rnd);
-
-				person.addPlan(plan);
-				person.setSelectedPlan(plan);
-			}
-
-			case "false" -> {
-				// Keep the stay home plan
-			}
-
-			default -> throw new AssertionError("Invalid mobile_on_day attribute " + mobile);
-		}
-	}
-
 	/**
-	 * Copy attributes from csv record to person.
+	 * Create daily plan from a list of entries.
 	 */
-	public void copyAttributes(CSVRecord row, Person person) {
-		PersonUtils.setCarAvail(person, row.get("car_avail").equals("True") ? "always" : "never");
-		PersonUtils.setLicence(person, row.get("driving_license").toLowerCase());
-		PersonUtils.setIncome(person, Math.max(499, Double.parseDouble(row.get("income"))));
-
-		person.getAttributes().putAttribute(Attributes.BIKE_AVAIL, row.get("bike_avail").equals("True") ? "always" : "never");
-		person.getAttributes().putAttribute(Attributes.PT_ABO_AVAIL, row.get("pt_abo_avail").equals("True") ? "always" : "never");
-
-		person.getAttributes().putAttribute(Attributes.EMPLOYMENT, row.get("employment"));
-		person.getAttributes().putAttribute(Attributes.RESTRICTED_MOBILITY, row.get("restricted_mobility").equals("True"));
-		person.getAttributes().putAttribute(Attributes.ECONOMIC_STATUS, row.get("economic_status"));
-		person.getAttributes().putAttribute(Attributes.HOUSEHOLD_SIZE, Integer.parseInt(row.get("n_persons")));
-	}
-
-	/**
-	 * Randomize the duration slightly, depending on total duration.
-	 */
-	private static int randomizeDuration(int minutes, SplittableRandom rnd) {
-		if (minutes <= 10)
-			return minutes * 60;
-
-		if (minutes <= 60)
-			return minutes * 60 + rnd.nextInt(300) - 150;
-
-		if (minutes <= 240)
-			return minutes * 60 + rnd.nextInt(600) - 300;
-
-		return minutes * 60 + rnd.nextInt(1200) - 600;
-	}
-
-	/**
-	 * Create plan for a person using given id.
-	 */
-	public Plan createPlan(Coord homeCoord, String personId) {
-		return createPlan(homeCoord, activities.get(personId), ctxs.get().rnd);
-	}
-
-	private Plan createPlan(Coord homeCoord, List<CSVRecord> activities, SplittableRandom rnd) {
+	public static Plan createPlan(Coord homeCoord, List<CSVRecord> activities, SplittableRandom rnd, PopulationFactory factory) {
 		Plan plan = factory.createPlan();
 
 		Activity a = null;
@@ -235,7 +95,7 @@ public final class RunActivitySampling implements MATSimAppCommand, PersonAlgori
 			if (actType.equals("other") && (i == 0 || i == activities.size() - 1))
 				actType = "home";
 
-			int duration = Integer.parseInt(act.get("duration"));
+			int duration = (int) Double.parseDouble(act.get("duration"));
 
 			if (actType.equals("home")) {
 				a = factory.createActivityFromCoord("home", homeCoord);
@@ -319,6 +179,169 @@ public final class RunActivitySampling implements MATSimAppCommand, PersonAlgori
 		}
 
 		return plan;
+	}
+
+	/**
+	 * Read and group activities by person id.
+	 */
+	public static Map<String, List<CSVRecord>> readActivities(Path csv) throws IOException {
+
+		String currentId = null;
+		List<CSVRecord> current = null;
+		Map<String, List<CSVRecord>> activities = new LinkedHashMap<>();
+		int i = 0;
+
+
+		try (CSVParser parser = CSVParser.parse(csv, StandardCharsets.UTF_8,
+			CSVFormat.DEFAULT.builder().setHeader().setSkipHeaderRecord(true).build())) {
+			for (CSVRecord r : parser) {
+
+				String pId = r.get("p_id");
+
+				if (!Objects.equals(pId, currentId)) {
+					if (current != null)
+						activities.put(currentId, current);
+
+					currentId = pId;
+					current = new ArrayList<>();
+				}
+
+				current.add(r);
+				i++;
+			}
+		}
+
+		if (current != null && !current.isEmpty()) {
+			activities.put(currentId, current);
+		}
+
+		log.info("Read {} activities for {} persons", i, activities.size());
+
+		return activities;
+	}
+
+	/**
+	 * Randomize the duration slightly, depending on total duration.
+	 */
+	static int randomizeDuration(int minutes, SplittableRandom rnd) {
+		if (minutes <= 10)
+			return minutes * 60;
+
+		if (minutes <= 60)
+			return minutes * 60 + rnd.nextInt(300) - 150;
+
+		if (minutes <= 240)
+			return minutes * 60 + rnd.nextInt(600) - 300;
+
+		return minutes * 60 + rnd.nextInt(1200) - 600;
+	}
+
+	@Override
+	public Integer call() throws Exception {
+
+		Population population = PopulationUtils.readPopulation(input.toString());
+
+		matcher = new PersonMatcher("idx", personsPath);
+
+		activities.putAll(readActivities(activityPath));
+
+		factory = population.getFactory();
+
+		ParallelPersonAlgorithmUtils.run(population, 8, this);
+
+		PopulationUtils.writePopulation(population, output.toString());
+
+		double atHome = 0;
+		for (Person person : population.getPersons().values()) {
+			List<Leg> legs = TripStructureUtils.getLegs(person.getSelectedPlan());
+			if (legs.isEmpty())
+				atHome++;
+		}
+
+		int size = population.getPersons().size();
+		double mobile = (size - atHome) / size;
+
+		log.info("Processed {} persons, mobile persons: {}%", size, 100 * mobile);
+
+		return 0;
+	}
+
+	@Override
+	public void run(Person person) {
+
+		SplittableRandom rnd = initRandomNumberGenerator(person);
+
+		String idx = matcher.matchPerson(person, rnd);
+		CSVRecord row = matcher.getPerson(idx);
+
+		copyAttributes(row, person);
+
+		String mobile = row.get("mobile_on_day");
+
+		// ensure mobile agents have a valid plan
+		switch (mobile.toLowerCase()) {
+
+			case "true" -> {
+				List<CSVRecord> activities = this.activities.get(idx);
+
+				if (activities == null)
+					throw new AssertionError("No activities for mobile person " + idx);
+
+				if (activities.size() == 0)
+					throw new AssertionError("Activities for mobile agent can not be empty.");
+
+				person.removePlan(person.getSelectedPlan());
+				Plan plan = createPlan(Attributes.getHomeCoord(person), activities, rnd, factory);
+
+				person.addPlan(plan);
+				person.setSelectedPlan(plan);
+			}
+
+			case "false" -> {
+				// Keep the stay home plan
+			}
+
+			default -> throw new AssertionError("Invalid mobile_on_day attribute " + mobile);
+		}
+	}
+
+	/**
+	 * Copy attributes from csv record to person.
+	 */
+	public void copyAttributes(CSVRecord row, Person person) {
+		PersonUtils.setCarAvail(person, row.get("car_avail").equals("True") ? "always" : "never");
+		PersonUtils.setLicence(person, row.get("driving_license").toLowerCase());
+
+		double income = Double.parseDouble(row.get("income"));
+
+		// Define a minimum income
+		PersonUtils.setIncome(person, Math.max(249, (int) Math.round(income)));
+
+		person.getAttributes().putAttribute(Attributes.BIKE_AVAIL, row.get("bike_avail").equals("True") ? "always" : "never");
+		person.getAttributes().putAttribute(Attributes.PT_ABO_AVAIL, row.get("pt_abo_avail").equals("True") ? "always" : "never");
+
+		person.getAttributes().putAttribute(Attributes.EMPLOYMENT, row.get("employment"));
+		person.getAttributes().putAttribute(Attributes.RESTRICTED_MOBILITY, row.get("restricted_mobility").equals("True"));
+		person.getAttributes().putAttribute(Attributes.ECONOMIC_STATUS, row.get("economic_status"));
+		person.getAttributes().putAttribute(Attributes.HOUSEHOLD_SIZE, Integer.parseInt(row.get("n_persons")));
+		person.getAttributes().putAttribute(Attributes.HOUSEHOLD_EQUIVALENT_SIZE, Double.parseDouble(row.get("equivalent_size")));
+		person.getAttributes().putAttribute(Attributes.HOUSEHOLD_TYPE, row.get("type"));
+	}
+
+	/**
+	 * Initializes random number generator with person specific seed.
+	 */
+	private SplittableRandom initRandomNumberGenerator(Person person) {
+		BigInteger i = new BigInteger(person.getId().toString().getBytes());
+		return new SplittableRandom(i.longValue() + seed);
+	}
+
+	/**
+	 * Create plan for a person using given id.
+	 */
+	@SuppressWarnings("OverloadMethodsDeclarationOrder")
+	public Plan createPlan(Coord homeCoord, String personId, SplittableRandom rnd) {
+		return createPlan(homeCoord, activities.get(personId), rnd, factory);
 	}
 
 	private record Context(SplittableRandom rnd) {

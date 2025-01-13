@@ -1,9 +1,10 @@
 [![Build Status](https://github.com/matsim-scenarios/matsim-berlin/actions/workflows/build.yaml/badge.svg?branch=main)](https://github.com/matsim-scenarios/matsim-berlin/actions/workflows/build.yaml)
 ![license](https://img.shields.io/github/license/matsim-scenarios/matsim-berlin.svg)
-![JDK](https://img.shields.io/badge/JDK-17+-green.svg)
+![JDK](https://img.shields.io/badge/JDK-21+-green.svg)
 
 # The MATSim Open Berlin Scenario
-![Berlin MATSim network and agents)](scenarios/berlin-v5.5-10pct/visualization-berlin.png "Berlin MATSim network and agents")
+
+![MATSim Open Berlin network, vehicles and activities](input/visualization.png "MATSim Open Berlin")
 
 ## About this project
 
@@ -13,9 +14,9 @@ This repository provides an open MATSim transport model for Berlin, provided by 
 
 Currently, there are multiple versions of the MATSim Open Berlin model:
 
-### 10pct scenario (`input/v6.3`)
+### 10pct scenario (`input/v6.4`)
 
-This scenario contains both 10pct and 1pct sample of the Greater Berlin population; road capacities are accordingly reduced. The scenario is calibrated taking into consideration the traffic counts, modal split and mode-specific trip distance distributions.
+This scenario contains a 10pct, 3pct and 1pct sample of the Greater Berlin population; road capacities are accordingly reduced. The scenario is calibrated taking into consideration the traffic counts, modal split and mode-specific trip distance distributions.
 
 
 ## Licenses
@@ -38,14 +39,14 @@ Handling of large files within git is not without problems (git lfs files are no
 
 1. Open SimWrapper at https://simwrapper.github.io/site/ .
 1. Select Explore Data Sources -> VSP Public-SVN .
-1. Navigate to de -> berlin -> berlin-v6.3 (https://simwrapper.github.io/site/public/de/berlin/berlin-v6.3).
+1. Navigate to de -> berlin -> berlin-v6.4 -> output (https://simwrapper.github.io/site/public/de/berlin/berlin-v6.4/output/berlin-v6.4-10pct/).
 1. Enjoy the dashboards and visualizations.
 
 ### Run VIA on output files
 
 1. Get VIA from https://www.simunto.com/via/.  (There is a free license for a small number of agents; that will probably work but only display a small number of vehicles/agents.)
 1. Go to https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/berlin/ .
-1. Decide for a scenario that you find interesting (e.g. `berlin-v6.3`) and go into that directory.
+1. Decide for a scenario that you find interesting (e.g. `berlin-v6.4`) and go into that directory.
 1. Inside there, look for an `output-*` directory that you find interesting and go into that directory.
 1. Download `*.output_network.xml.gz` and `*.output_events.xml.gz`.  Best make sure that they do not uncompress, e.g. by "Download linked file as ...".
 1. Get these files into VIA.  This can be achieved in various ways; one is to open VIA and then drag the files from a file browser into VIA.
@@ -98,7 +99,7 @@ This will download all necessary dependencies (it might take a while the first t
 java -jar [FILENAME].jar
 ``
 1. A simple GUI should open.
-1. In the GUI, click on the "Choose" button for configuration file.  Navigate to one of the `scenario` directories and load one of the configuration files.
+1. In the GUI, click on the "Choose" button for configuration file.  Navigate to one of the `input` directories and load one of the configuration files.
 1. Increase memory in the GUI.
 1. Press the "Start MATSim" button.  This should run MATSim.  Note that MATSim accepts URLs as filenames in its config, so while the config files are part of the git repo, running them will pull additional material from our server.
 1. "Open" the output directory.  You can drag files into VIA as was already done above.
@@ -112,7 +113,7 @@ java -jar [FILENAME].jar
 
 1. Set up the project in your IDE.
 1. Make sure the project is configured as maven project.
-1. Run the JAVA class `src/main/java/org/matsim/run/RunOpenBerlinScenario.java` or `src/main/java/org/matsim/gui/RunOpenBerlinScenarioGUI.java`.
+1. Run the JAVA class `src/main/java/org/matsim/run/RunOpenBerlinScenario.java`.
 1. "Open" the output directory.  You can drag files into VIA as was already done above.
 1. Edit the config file or adjust the run class. Re-run MATSim.
 </details>

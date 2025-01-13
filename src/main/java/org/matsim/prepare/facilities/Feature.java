@@ -1,7 +1,9 @@
 package org.matsim.prepare.facilities;
 
 import de.topobyte.osm4j.core.model.iface.OsmEntity;
+import de.topobyte.osm4j.core.model.iface.OsmNode;
 import de.topobyte.osm4j.core.model.iface.OsmTag;
+import de.topobyte.osm4j.core.model.iface.OsmWay;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import org.locationtech.jts.geom.MultiPolygon;
 
@@ -16,13 +18,30 @@ import java.util.Set;
 final class Feature {
 
 	final OsmEntity entity;
+	final OsmType osmType;
 	final BitSet bits;
+	final boolean isBuilding;
+	final boolean isUnspecific;
+	final boolean isLanduse;
+	final boolean isBusStop;
+	final boolean isTrainStop;
 	final MultiPolygon geometry;
+
+	/**
+	 * The activity types and their index.
+	 */
 	private final Object2IntMap<String> types;
+
 	/**
 	 * Stores all assigned osm members.
 	 */
 	List<Feature> members;
+
+	/**
+	 * These feature has low matching priority and will not be assigned to another feature.
+	 */
+	boolean lowPriority = false;
+
 	/**
 	 * Number of levels/floors in the building.
 	 */
@@ -38,12 +57,36 @@ final class Feature {
 	 */
 	public boolean geomIssues = false;
 
-	Feature(OsmEntity entity, Object2IntMap<String> types, MultiPolygon geometry) {
+	Feature(OsmEntity entity, Object2IntMap<String> types, MultiPolygon geometry,
+			boolean isBuilding, boolean isUnspecific, boolean isLanduse, boolean isBusStop, boolean isTrainStop) {
+
 		this.entity = entity;
+		this.osmType = entity instanceof OsmWay ? OsmType.way : entity instanceof OsmNode ? OsmType.node : OsmType.relation;
 		this.types = types;
 		this.bits = new BitSet(types.size());
+		this.isBuilding = isBuilding;
+		this.isUnspecific = isUnspecific;
+		this.isLanduse = isLanduse;
+		this.isBusStop = isBusStop;
+		this.isTrainStop = isTrainStop;
 		this.bits.clear();
 		this.geometry = geometry;
+	}
+
+	/**
+	 * Check if the entity has any activity types.
+	 */
+	boolean hasTypes() {
+		return !bits.isEmpty();
+	}
+
+	boolean isAssignable() {
+		// bus and trains stops should not be assigned other types
+		return hasTypes() || (!isBusStop && !isTrainStop);
+	}
+
+	boolean hasType(String act) {
+		return bits.get(types.getInt(act));
 	}
 
 	void set(Set<String> acts) {
@@ -95,6 +138,10 @@ final class Feature {
 	 * Check if the entity has a specific landuse tag.
 	 */
 	boolean hasLanduse(String landuse) {
+
+		if (!isLanduse)
+			return false;
+
 		int n = entity.getNumberOfTags();
 		for (int i = 0; i < n; i++) {
 			OsmTag tag = entity.getTag(i);
@@ -105,4 +152,15 @@ final class Feature {
 		return false;
 	}
 
+	boolean isResidentialOnly() {
+		return bits.get(types.getInt("resident")) && bits.cardinality() == 1;
+	}
+
+	public void setLowPriority() {
+		this.lowPriority = true;
+	}
+
+	public enum OsmType {
+		way, node, relation
+	}
 }

@@ -90,7 +90,15 @@ public class IndividualPersonScoringParameters implements ScoringParametersForPe
 		this.globalAvgIncome = computeAvgIncome(scenario.getPopulation());
 		this.categories = Category.fromConfigParams(this.scoring.getScoringParameters());
 		this.cache = new IdMap<>(Person.class, scenario.getPopulation().getPersons().size());
-		this.rnd = ThreadLocal.withInitial(() -> new Context(scenario.getConfig().global().getRandomSeed()));
+
+		// Create uncorrelated seed from the global seed
+		SplittableRandom rng = new SplittableRandom(scenario.getConfig().global().getRandomSeed());
+		for (int i = 0; i < rng.nextInt(); i++) {
+			rng.nextLong();
+		}
+
+		byte[] seed = Longs.toByteArray(rng.nextLong());
+		this.rnd = ThreadLocal.withInitial(() -> new Context(seed));
 	}
 
 	static DistanceGroup[] calcDistanceGroups(List<Integer> dists, DoubleList distUtils) {
@@ -205,7 +213,8 @@ public class IndividualPersonScoringParameters implements ScoringParametersForPe
 			// Income dependent scoring might be disabled
 			if (!Double.isNaN(globalAvgIncome) && personalIncome != null) {
 				if (personalIncome != 0) {
-					builder.setMarginalUtilityOfMoney(scoringParameters.getMarginalUtilityOfMoney() * globalAvgIncome / personalIncome);
+					builder.setMarginalUtilityOfMoney(scoringParameters.getMarginalUtilityOfMoney() *
+						Math.pow(globalAvgIncome / personalIncome, this.scoring.incomeExponent));
 				} else {
 					log.warn("You have set income to {} for person {}. This is invalid and gets ignored.Instead, the marginalUtilityOfMoney is derived from the subpopulation's scoring parameters.", personalIncome, person);
 				}
@@ -258,12 +267,12 @@ public class IndividualPersonScoringParameters implements ScoringParametersForPe
 				// Write the overall constants, but only if they are different to the base values
 				if (delta.constant != 0) {
 					values.put(mode.getKey() + "_constant", p.constant);
-					existing.put(mode.getKey() + "_constant", p.constant);
+					existing.put(mode.getKey() + "_constant", delta.constant);
 				}
 
 				if (delta.dailyUtilityConstant != 0) {
 					values.put(mode.getKey() + "_dailyConstant", p.dailyUtilityConstant);
-					existing.put(mode.getKey() + "_dailyConstant", p.dailyUtilityConstant);
+					existing.put(mode.getKey() + "_dailyConstant", delta.dailyUtilityConstant);
 				}
 
 				if (groups != null) {
@@ -294,7 +303,7 @@ public class IndividualPersonScoringParameters implements ScoringParametersForPe
 		}
 
 		// Else, require that the attributes are present
-		if (!existing.containsKey(mode + "constant") && scoring.loadPreferences == AdvancedScoringConfigGroup.LoadPreferences.requireAttribute) {
+		if (!existing.containsKey(mode + "_constant") && scoring.loadPreferences == AdvancedScoringConfigGroup.LoadPreferences.requireAttribute) {
 			throw new IllegalArgumentException("Person " + person.getId() + " does not have attribute " + mode + "_constant");
 		}
 		if (!existing.containsKey(mode + "_dailyConstant") && scoring.loadPreferences == AdvancedScoringConfigGroup.LoadPreferences.requireAttribute) {
@@ -303,7 +312,7 @@ public class IndividualPersonScoringParameters implements ScoringParametersForPe
 
 		// Use attributes if they are present
 		if (existing.containsKey(mode + "_constant"))
-			delta.constant = existing.getDouble(mode + "_constant");
+			delta.constant = existing.getDouble(mode + "_constant") ;
 
 		if (existing.containsKey(mode + "_dailyConstant"))
 			delta.dailyUtilityConstant = existing.getDouble(mode + "_dailyConstant");
@@ -337,11 +346,10 @@ public class IndividualPersonScoringParameters implements ScoringParametersForPe
 	 */
 	private record Context(NormalDistribution normal, TruncatedNormalDistribution tn, byte[] seed, RestorableUniformRandomProvider rnd) {
 
-		Context(long seed) {
+		Context(byte[] seed) {
 			this(NormalDistribution.of(0, 1),
 				TruncatedNormalDistribution.of(0, 1, 0, Double.POSITIVE_INFINITY),
-				// Feed seed into random number generator
-				Longs.toByteArray(new SplittableRandom(seed).nextLong()),
+				seed,
 				RandomSource.KISS.create());
 		}
 
@@ -360,6 +368,11 @@ public class IndividualPersonScoringParameters implements ScoringParametersForPe
 			System.arraycopy(person, 0, state, 8, Math.min(person.length, 12));
 
 			rnd.restoreState(new RandomProviderDefaultState(state));
+
+			// Warm up the generator
+			for (int i = 0; i < 100; i++) {
+				rnd.nextLong();
+			}
 		}
 	}
 }

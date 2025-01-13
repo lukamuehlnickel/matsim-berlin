@@ -16,12 +16,26 @@ public final class AdvancedScoringConfigGroup extends ReflectiveConfigGroup {
 	@Parameter
 	@Comment("The distance groups if marginal utility of distance is adjusted. In meters.")
 	public List<Integer> distGroups;
+
 	@Parameter
 	@Comment("Enable income dependent marginal utility of money.")
 	public IncomeDependentScoring incomeDependent = IncomeDependentScoring.avgByPersonalIncome;
+
+	@Parameter
+	@Comment("Exponent for (global_income / personal_income) ** x.")
+	public double incomeExponent = 1;
+
 	@Parameter
 	@Comment("Define how to load existing preferences.")
 	public LoadPreferences loadPreferences = LoadPreferences.none;
+
+	@Parameter
+	@Comment("Scale for pseudo random errors. 0 disables it completely.")
+	public double pseudoRamdomScale = 0;
+
+	@Parameter
+	@Comment("Distribution of the random error terms.")
+	public VariationType pseudoRandomDistribution = VariationType.normal;
 
 	private final List<ScoringParameters> scoringParameters = new ArrayList<>();
 
@@ -77,7 +91,7 @@ public final class AdvancedScoringConfigGroup extends ReflectiveConfigGroup {
 	 * Variate values with random draw from specific distribution.
 	 */
 	public enum VariationType {
-		fixed, normal, truncatedNormal
+		fixed, normal, truncatedNormal, gumbel
 	}
 
 	/**
@@ -164,8 +178,24 @@ public final class AdvancedScoringConfigGroup extends ReflectiveConfigGroup {
 		public VariationType varDailyConstant = VariationType.fixed;
 
 		@Parameter
-		@Comment("total delta utility per dist group.")
+		@Comment("Total delta utility per dist group.")
 		public List<Double> deltaPerDistGroup;
+
+		/*
+		Unused options:
+
+		@Parameter
+		@Comment("Marginal utility of distance calculated as beta_dist * (dist/ref_dist)^exp_dist.")
+		public double betaDist = 0;
+
+		@Parameter
+		@Comment("Reference mean distance.")
+		public double refDist;
+
+		@Parameter
+		@Comment("Exponent controlling non-linearity of distance utility.")
+		public double expDist = 0;
+		 */
 
 		public ModeParams() {
 			super(GROUP_NAME);

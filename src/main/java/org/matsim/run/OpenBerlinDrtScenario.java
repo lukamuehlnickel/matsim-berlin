@@ -26,9 +26,13 @@ import com.beust.jcommander.internal.Lists;
 import com.google.common.collect.ImmutableSet;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.locationtech.jts.geom.Geometry;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.TransportMode;
+import org.matsim.api.core.v01.network.Link;
 import org.matsim.application.MATSimApplication;
+import org.matsim.application.options.ShpOptions;
 import org.matsim.contrib.drt.routing.DrtRoute;
 import org.matsim.contrib.drt.routing.DrtRouteFactory;
 import org.matsim.contrib.drt.run.DrtConfigGroup;
@@ -45,9 +49,12 @@ import org.matsim.core.config.groups.QSimConfigGroup;
 import org.matsim.core.config.groups.ScoringConfigGroup;
 import org.matsim.core.controler.AbstractModule;
 import org.matsim.core.controler.Controler;
+import org.matsim.core.network.algorithms.MultimodalNetworkCleaner;
 import org.matsim.core.population.routes.RouteFactories;
 import org.matsim.core.router.AnalysisMainModeIdentifier;
 import org.matsim.core.router.MainModeIdentifier;
+import org.matsim.core.scenario.ScenarioUtils;
+import org.matsim.core.utils.geometry.geotools.MGC;
 import org.matsim.extensions.pt.fare.intermodalTripFareCompensator.IntermodalTripFareCompensatorConfigGroup;
 import org.matsim.extensions.pt.fare.intermodalTripFareCompensator.IntermodalTripFareCompensatorsConfigGroup;
 import org.matsim.extensions.pt.fare.intermodalTripFareCompensator.IntermodalTripFareCompensatorsModule;
@@ -55,18 +62,13 @@ import org.matsim.extensions.pt.routing.EnhancedRaptorIntermodalAccessEgress;
 import org.matsim.extensions.pt.routing.ptRoutingModes.PtIntermodalRoutingModesConfigGroup;
 import org.matsim.extensions.pt.routing.ptRoutingModes.PtIntermodalRoutingModesModule;
 import org.matsim.legacy.run.BerlinExperimentalConfigGroup;
-import org.matsim.legacy.run.drt.BerlinShpUtils;
 import org.matsim.legacy.run.drt.OpenBerlinIntermodalPtDrtRouterAnalysisModeIdentifier;
 import org.matsim.legacy.run.drt.OpenBerlinIntermodalPtDrtRouterModeIdentifier;
-import org.matsim.legacy.run.drt.RunDrtOpenBerlinScenario;
 import org.matsim.pt.transitSchedule.api.TransitSchedule;
 import org.matsim.pt.transitSchedule.api.TransitStopFacility;
 import picocli.CommandLine;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Extend the {@link OpenBerlinScenario} by DRT functionality. <br>
@@ -76,12 +78,10 @@ import java.util.Set;
  */
 public class OpenBerlinDrtScenario extends OpenBerlinScenario {
 
-	//TODO: write tests
-
 	private static final Logger log = LogManager.getLogger(OpenBerlinDrtScenario.class);
 
 	@CommandLine.Option(names = "--drt-config",
-		defaultValue = "input/v" + OpenBerlinScenario.VERSION + "/berlin-v" + OpenBerlinScenario.VERSION +".drt-config.xml",
+		defaultValue = "input/v" + OpenBerlinScenario.VERSION + "/berlin-v" + OpenBerlinScenario.VERSION + ".drt-config.xml",
 		description = "Path to drt (only) config. Should contain only additional stuff to base config. Otherwise overrides.")
 	private String drtConfig;
 
@@ -107,8 +107,7 @@ public class OpenBerlinDrtScenario extends OpenBerlinScenario {
 					// This is even more true since drt started to route on a freespeed TT matrix (Nov '20).
 					// A buffer of 10km to the service area Berlin includes the A10 on some useful stretches outside Berlin.
 					if (berlinCfg.getTagDrtLinksBufferAroundServiceAreaShp() >= 0.0) {
-						//TODO: inline/move method ?
-						RunDrtOpenBerlinScenario.addDRTmode(scenario, drtCfg.getMode(), drtServiceAreaShapeFile, berlinCfg.getTagDrtLinksBufferAroundServiceAreaShp());
+						addDRTMode(scenario, drtCfg.getMode(), drtServiceAreaShapeFile, berlinCfg.getTagDrtLinksBufferAroundServiceAreaShp());
 					}
 				}
 
@@ -131,16 +130,66 @@ public class OpenBerlinDrtScenario extends OpenBerlinScenario {
 													 String oldFilterAttribute, String oldFilterValue,
 													 double bufferAroundServiceArea) {
 		log.info("Tagging pt stops marked for intermodal access/egress in the service area.");
-		BerlinShpUtils shpUtils = new BerlinShpUtils(drtServiceAreaShapeFile);
+		ShpOptions shp = new ShpOptions(drtServiceAreaShapeFile, null, null);
+		List<Geometry> serviceAreas = new ArrayList<>();
+		for (SimpleFeature ft : shp.readFeatures()) {
+			Geometry geom = (Geometry) ft.getDefaultGeometry();
+			serviceAreas.add(geom.buffer(bufferAroundServiceArea));
+		}
+
 		for (TransitStopFacility stop : transitSchedule.getFacilities().values()) {
 			if (stop.getAttributes().getAttribute(oldFilterAttribute) != null) {
-				if (stop.getAttributes().getAttribute(oldFilterAttribute).equals(oldFilterValue)) {
-					if (shpUtils.isCoordInDrtServiceAreaWithBuffer(stop.getCoord(), bufferAroundServiceArea)) {
-						stop.getAttributes().putAttribute(newAttributeName, newAttributeValue);
-					}
+				if (stop.getAttributes().getAttribute(oldFilterAttribute).equals(oldFilterValue) &&
+					serviceAreas.stream().anyMatch(geom -> geom.contains(MGC.coord2Point(stop.getCoord())))) {
+					stop.getAttributes().putAttribute(newAttributeName, newAttributeValue);
 				}
 			}
 		}
+	}
+
+	private static void addDRTMode(Scenario scenario, String drtNetworkMode, String drtServiceAreaShapeFile, double buffer) {
+
+		log.info("Adjusting network...");
+
+		ShpOptions shp = new ShpOptions(drtServiceAreaShapeFile, null, null);
+		List<Geometry> serviceAreas = new ArrayList<>();
+		for (SimpleFeature ft : shp.readFeatures()) {
+			Geometry geom = (Geometry) ft.getDefaultGeometry();
+			serviceAreas.add(geom.buffer(buffer));
+		}
+
+
+		int counter = 0;
+		int counterInside = 0;
+		int counterOutside = 0;
+		for (Link link : scenario.getNetwork().getLinks().values()) {
+			if (counter % 10000 == 0)
+				log.info("link #{}", counter);
+			counter++;
+			if (link.getAllowedModes().contains(TransportMode.car)) {
+				if (serviceAreas.stream().anyMatch(geom -> geom.contains(MGC.coord2Point(link.getFromNode().getCoord())) ||
+					geom.contains(MGC.coord2Point(link.getToNode().getCoord())))) {
+
+					Set<String> allowedModes = new HashSet<>(link.getAllowedModes());
+
+					allowedModes.add(drtNetworkMode);
+
+					link.setAllowedModes(allowedModes);
+					counterInside++;
+				} else {
+					counterOutside++;
+				}
+
+			}
+		}
+
+		log.info("Total links: {}", counter);
+		log.info("Total links inside service area: {}", counterInside);
+		log.info("Total links outside service area: {}", counterOutside);
+
+		Set<String> modes = new HashSet<>();
+		modes.add(drtNetworkMode);
+		new MultimodalNetworkCleaner(scenario.getNetwork()).run(modes);
 	}
 
 	@Override
@@ -218,13 +267,21 @@ public class OpenBerlinDrtScenario extends OpenBerlinScenario {
 	}
 
 	@Override
-	protected void prepareScenario(Scenario scenario) {
-		super.prepareScenario(scenario);
+	protected Scenario createScenario(Config config) {
+		Scenario scenario = ScenarioUtils.createScenario(config);
 
 		//if the input plans contain DrtRoutes, this will cause problems later in the DrtRouteFactory
 		//to avoid this, the DrtRouteFactory would have to get set before loading the scenario, just like in Open Berlin v5.x
 		RouteFactories routeFactories = scenario.getPopulation().getFactory().getRouteFactories();
 		routeFactories.setRouteFactory(DrtRoute.class, new DrtRouteFactory());
+
+		ScenarioUtils.loadScenario(scenario);
+		return scenario;
+	}
+
+	@Override
+	protected void prepareScenario(Scenario scenario) {
+		super.prepareScenario(scenario);
 
 		//if the drt mode is configured as a dvrp network mode and if it has a service area
 		//the drt mode is added to the links in the service area with a buffer of +2000 meter (per default or otherwise configured in BerlinExperimentalConfigGroup)

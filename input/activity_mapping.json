@@ -1,7 +1,7 @@
 {
   "building": {
     "hotel": ["work"],
-    "commercial": ["shop", "work", "delivery"],
+    "commercial": ["work", "delivery"],
     "retail": ["shop", "work", "delivery"],
     "supermarket": ["shop", "shop_daily", "dining", "work", "delivery"],
     "industrial": ["work", "delivery"],
@@ -26,7 +26,14 @@
     "college": ["edu_higher", "work"],
     "sports_hall": ["leisure", "work"],
     "stadium": ["leisure", "work"],
-    "apartments": ["resident"]
+    "garage": ["parking"],
+    "apartments": ["resident"],
+    "house": ["resident"],
+    "detached": ["resident"],
+    "semidetached_house": ["resident"],
+    "bungalow": ["resident"],
+    "terrace": ["resident"],
+    "residential": ["resident"]
   },
   "amenity": {
     "bar": ["leisure", "work", "delivery", "dining"],
@@ -71,11 +78,12 @@
     "post_depot": ["p_business", "work"],
     "post_office": ["p_business", "work"],
     "prison": ["p_business", "work"],
-    "townhall": ["p_business", "work"]
+    "townhall": ["p_business", "work"],
+    "parking": ["parking"]
   },
   "landuse": {
-    "commercial": ["shop", "work", "delivery"],
-    "industrial": ["shop", "work", "delivery", "depot"],
+    "commercial": ["work", "delivery"],
+    "industrial": ["work", "delivery", "depot"],
     "retail": ["shop", "work", "delivery"],
     "depot": ["depot"],
     "port": ["depot"],
