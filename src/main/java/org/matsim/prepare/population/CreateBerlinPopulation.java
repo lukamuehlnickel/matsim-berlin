@@ -86,7 +86,7 @@ public class CreateBerlinPopulation implements MATSimAppCommand {
 	/**
 	 * Samples a home coordinates from geometry and landuse.
 	 */
-	public static Coord sampleHomeCoordinate(Geometry geometry, String crs, FacilityOptions facilities, SplittableRandom rnd) {
+	public static Coord sampleHomeCoordinate(Geometry geometry, String crs, FacilityOptions facilities, SplittableRandom rnd, int tries) {
 
 		Envelope bbox = geometry.getEnvelopeInternal();
 
@@ -100,7 +100,7 @@ public class CreateBerlinPopulation implements MATSimAppCommand {
 
 			i++;
 
-		} while (!geometry.contains(MGC.coord2Point(coord)) && i < 1500);
+		} while (!geometry.contains(MGC.coord2Point(coord)) && i < tries);
 
 		if (i == 1500)
 			log.warn("Invalid coordinate generated");
@@ -223,7 +223,7 @@ public class CreateBerlinPopulation implements MATSimAppCommand {
 				PersonUtils.setEmployed(person, false);
 			}
 
-			Coord coord = ct.transform(sampleHomeCoordinate(geom, "EPSG:25833", facilities, rnd));
+			Coord coord = ct.transform(sampleHomeCoordinate(geom, "EPSG:25833", facilities, rnd, 1500));
 
 			person.getAttributes().putAttribute(Attributes.HOME_X, coord.getX());
 			person.getAttributes().putAttribute(Attributes.HOME_Y, coord.getY());
@@ -231,6 +231,7 @@ public class CreateBerlinPopulation implements MATSimAppCommand {
 			person.getAttributes().putAttribute(Attributes.GEM, 11000000);
 			person.getAttributes().putAttribute(Attributes.ARS, 110000000000L);
 			person.getAttributes().putAttribute(Attributes.LOR, Integer.parseInt(raumID));
+			person.getAttributes().putAttribute(Attributes.ZONE, raumID.substring(0, 2));
 
 			Plan plan = f.createPlan();
 			plan.addActivity(f.createActivityFromCoord("home", coord));

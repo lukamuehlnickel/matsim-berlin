@@ -10,7 +10,6 @@ import org.matsim.facilities.ActivityFacility;
 import org.matsim.facilities.FacilitiesUtils;
 import org.matsim.facilities.MatsimFacilitiesReader;
 import org.matsim.prepare.facilities.AttributedActivityFacility;
-import org.matsim.run.OpenBerlinScenario;
 
 import java.util.*;
 import java.util.function.Function;
@@ -20,23 +19,30 @@ import java.util.stream.Collectors;
 /**
  * Spatial index for facilities.
  */
-final class FacilityIndex {
+public final class FacilityIndex {
 
 	private static final Logger log = LogManager.getLogger(FacilityIndex.class);
-
-	final ActivityFacilities all = FacilitiesUtils.createActivityFacilities();
-
 	/**
 	 * Maps activity type to spatial index.
 	 */
-	final Map<String, STRtree> index = new HashMap<>();
+	public final Map<String, STRtree> index = new HashMap<>();
+	final ActivityFacilities all = FacilitiesUtils.createActivityFacilities();
 
-	FacilityIndex(String facilityPath) {
+	public FacilityIndex(String facilityPath, String crs) {
+		this(facilityPath, f -> true, crs);
+	}
 
-		new MatsimFacilitiesReader(OpenBerlinScenario.CRS, OpenBerlinScenario.CRS, all)
-			.readFile(facilityPath);
+	/**
+	 * Creates spatial index for facilities.
+	 *
+	 * @param f predicate to filter or transform facilities
+	 */
+	public FacilityIndex(String facilityPath, Predicate<ActivityFacility> f, String crs) {
+
+		new MatsimFacilitiesReader(crs, crs, all).readFile(facilityPath);
 
 		Set<String> activities = all.getFacilities().values().stream()
+			.filter(f)
 			.flatMap(a -> a.getActivityOptions().keySet().stream())
 			.collect(Collectors.toSet());
 
@@ -75,6 +81,16 @@ final class FacilityIndex {
 			idx = -idx - 1;
 		}
 		return idx;
+	}
+
+	/**
+	 * Samples from list of candidates until one option is not rejected.
+	 */
+	public static ActivityFacility sample(List<ActivityFacility> candidates, SplittableRandom rnd) {
+		if (candidates.isEmpty())
+			return null;
+
+		return candidates.get(rnd.nextInt(candidates.size()));
 	}
 
 	/**
@@ -117,6 +133,112 @@ final class FacilityIndex {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Groups candidates first using classifier. Then does a weighted sample on the groups. THen samples a facility by weight from the chosen group.
+	 * The groups are typical zones which might have certain OD relations.
+	 */
+	public static ActivityFacility sampleByWeightWithGrouping(List<AttributedActivityFacility> candidates,
+															  Function<AttributedActivityFacility, String> classifier,
+															  Function<Map.Entry<String, List<AttributedActivityFacility>>, Double> groupWeight,
+															  Function<AttributedActivityFacility, Double> facilityWeight, SplittableRandom rnd) {
+
+		if (candidates.isEmpty())
+			return null;
+
+		// Entries which produce a null key are discarded
+		Map<String, List<AttributedActivityFacility>> map = candidates.stream()
+			.filter(af -> classifier.apply(af) != null)
+			.collect(Collectors.groupingBy(classifier));
+
+		List<Map.Entry<String, List<AttributedActivityFacility>>> grouped = map.entrySet().stream().toList();
+
+		double totalWeight = 0.0;
+		double[] weights = new double[grouped.size()];
+
+		for (int i = 0; i < grouped.size(); ++i) {
+			double w = groupWeight.apply(grouped.get(i));
+			totalWeight += w;
+			weights[i] = totalWeight;
+		}
+
+		// No weights, sample uniformly
+		if (totalWeight == 0.0) {
+			List<AttributedActivityFacility> list = grouped.get(rnd.nextInt(grouped.size())).getValue();
+			return list.get(rnd.nextInt(list.size()));
+		}
+
+		double r = rnd.nextDouble(0.0, totalWeight);
+		int idx = Arrays.binarySearch(weights, r);
+		if (idx < 0) {
+			idx = -idx - 1;
+		}
+
+		// First get the samples group
+		List<AttributedActivityFacility> list = grouped.get(idx).getValue();
+
+		double totalGroupWeight = 0;
+		double[] groupWeights = new double[list.size()];
+
+		for (int i = 0; i < list.size(); i++) {
+			double w = facilityWeight.apply(list.get(i));
+			totalGroupWeight += w;
+			groupWeights[i] = totalGroupWeight;
+		}
+
+		int idx2 = Arrays.binarySearch(groupWeights, rnd.nextDouble(0, totalGroupWeight));
+		if (idx2 < 0) {
+			idx2 = -idx2 - 1;
+		}
+
+		// Sample random facility from the zone
+		return list.get(idx2);
+	}
+
+	/**
+	 * Groups candidates first using classifier. Then does a weighted sample on the groups and selects a random facility.
+	 * The groups are typical zones which might have certain OD relations.
+	 */
+	public static ActivityFacility sampleWithGrouping(List<AttributedActivityFacility> candidates,
+													  Function<AttributedActivityFacility, String> classifier,
+													  Function<Map.Entry<String, List<AttributedActivityFacility>>, Double> groupWeight,
+													  SplittableRandom rnd) {
+
+		if (candidates.isEmpty())
+			return null;
+
+		Map<String, List<AttributedActivityFacility>> map = candidates.stream()
+			.collect(Collectors.groupingBy(classifier));
+
+		List<Map.Entry<String, List<AttributedActivityFacility>>> grouped = map.entrySet().stream().toList();
+
+		double totalWeight = 0.0;
+		double[] weights = new double[grouped.size()];
+
+		for (int i = 0; i < grouped.size(); ++i) {
+			double w = groupWeight.apply(grouped.get(i));
+			totalWeight += w;
+			weights[i] = totalWeight;
+		}
+
+		// No weights, sample uniformly
+		if (totalWeight == 0.0) {
+			List<AttributedActivityFacility> list = grouped.get(rnd.nextInt(grouped.size())).getValue();
+			return list.get(rnd.nextInt(list.size()));
+		}
+
+		double r = rnd.nextDouble(0.0, totalWeight);
+		int idx = Arrays.binarySearch(weights, r);
+		if (idx < 0) {
+			idx = -idx - 1;
+		}
+
+		// First sample a random group.
+		List<AttributedActivityFacility> list = grouped.get(idx).getValue();
+
+		// Sample random facility from the zone
+		return list.get(rnd.nextInt(list.size()));
 	}
 
 }

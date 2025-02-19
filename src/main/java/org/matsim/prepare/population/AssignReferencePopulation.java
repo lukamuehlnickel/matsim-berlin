@@ -15,6 +15,7 @@ import org.matsim.application.analysis.population.TripAnalysis;
 import org.matsim.application.options.ShpOptions;
 import org.matsim.core.population.PopulationUtils;
 import org.matsim.core.router.TripStructureUtils;
+import org.matsim.run.OpenBerlinScenario;
 import picocli.CommandLine;
 
 import java.nio.file.Files;
@@ -79,7 +80,7 @@ public class AssignReferencePopulation implements MATSimAppCommand {
 
 		SplittableRandom rnd = new SplittableRandom(0);
 		persons = new PersonMatcher("idx", personsPath);
-		facilities = new FacilityIndex(facilityPath.toString());
+		facilities = new FacilityIndex(facilityPath.toString(), OpenBerlinScenario.CRS);
 
 		PlanBuilder planBuilder = new PlanBuilder(shp, facilities, activityPath);
 
@@ -97,6 +98,9 @@ public class AssignReferencePopulation implements MATSimAppCommand {
 		for (Map.Entry<String, CSVRecord> e : ProgressBar.wrap(persons, "Assigning reference population")) {
 
 			CSVRecord p = e.getValue();
+
+			// The persons csv is upscaled using the weight of the person, which is easier to handle in many algorithms
+			// However, here we take only the original person from the person table, which means that the weight needs to be considered as well
 			if (!p.get("seq").equals("0"))
 				continue;
 
@@ -126,7 +130,7 @@ public class AssignReferencePopulation implements MATSimAppCommand {
 
 				// Create the base daily plan (without locations)
 				Coord homeCoord = Attributes.getHomeCoord(person);
-				Plan plan = sampling.createPlan(homeCoord, e.getKey());
+				Plan plan = sampling.createPlan(homeCoord, e.getKey(), rnd);
 
 				boolean success = planBuilder.assignLocationsFromZones(e.getKey(), plan, homeCoord);
 

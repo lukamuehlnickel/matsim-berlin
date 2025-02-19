@@ -27,7 +27,6 @@ import org.matsim.api.core.v01.events.ActivityEndEvent;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonDepartureEvent;
 import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
-import org.matsim.api.core.v01.network.Network;
 import org.matsim.api.core.v01.population.Leg;
 import org.matsim.api.core.v01.population.Route;
 import org.matsim.core.gbl.Gbl;
@@ -56,15 +55,13 @@ public final class PiecewiseLinearlLegScoring implements org.matsim.core.scoring
 	private final double marginalUtilityOfMoney;
 	private final Set<String> modesAlreadyConsideredForDailyConstants;
 	private double score;
-	private Network network;
 	private boolean nextEnterVehicleIsFirstOfTrip = true;
 	private boolean nextStartPtLegIsFirstOfTrip = true;
 	private boolean currentLegIsPtLeg = false;
 	private double lastActivityEndTime = Double.NaN;
 
-	public PiecewiseLinearlLegScoring(final ScoringParameters params, Network network, Set<String> ptModes) {
+	public PiecewiseLinearlLegScoring(final ScoringParameters params, Set<String> ptModes) {
 		this.params = params;
-		this.network = network;
 		this.ptModes = ptModes;
 		this.modesAlreadyConsideredForDailyConstants = new HashSet<>();
 		this.marginalUtilityOfMoney = this.params.marginalUtilityOfMoney;

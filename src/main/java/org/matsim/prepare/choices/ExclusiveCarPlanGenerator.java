@@ -3,8 +3,8 @@ package org.matsim.prepare.choices;
 import org.apache.commons.lang3.ArrayUtils;
 import org.jetbrains.annotations.Nullable;
 import org.matsim.api.core.v01.TransportMode;
+import org.matsim.api.core.v01.population.Plan;
 import org.matsim.core.population.PersonUtils;
-import org.matsim.modechoice.CandidateGenerator;
 import org.matsim.modechoice.PlanCandidate;
 import org.matsim.modechoice.PlanModel;
 import org.matsim.modechoice.search.TopKChoicesGenerator;
@@ -18,7 +18,7 @@ import java.util.Set;
  * Generate two plans only, one with car and one without.
  * Also considers car availability and the current plan.
  */
-public class ExclusiveCarPlanGenerator implements CandidateGenerator {
+public class ExclusiveCarPlanGenerator implements ChoiceGenerator {
 
 	private final TopKChoicesGenerator generator;
 
@@ -27,7 +27,7 @@ public class ExclusiveCarPlanGenerator implements CandidateGenerator {
 	}
 
 	@Override
-	public List<PlanCandidate> generate(PlanModel planModel, @Nullable Set<String> consideredModes, @Nullable boolean[] mask) {
+	public List<PlanCandidate> generate(Plan plan, PlanModel planModel, @Nullable Set<String> consideredModes) {
 
 		List<String[]> chosen = new ArrayList<>();
 		chosen.add(planModel.getCurrentModes());
@@ -46,7 +46,7 @@ public class ExclusiveCarPlanGenerator implements CandidateGenerator {
 
 		PlanCandidate alternative;
 		if (ArrayUtils.contains(planModel.getCurrentModes(), carMode)) {
-			List<PlanCandidate> choices = generator.generate(planModel, modes, mask);
+			List<PlanCandidate> choices = generator.generate(planModel, modes, null);
 
 			if (choices.isEmpty())
 				return null;
@@ -55,7 +55,7 @@ public class ExclusiveCarPlanGenerator implements CandidateGenerator {
 
 		} else {
 			modes.add(carMode);
-			List<PlanCandidate> choices = generator.generate(planModel, modes, mask);
+			List<PlanCandidate> choices = generator.generate(planModel, modes, null);
 
 			if (choices.isEmpty())
 				return null;
@@ -67,7 +67,7 @@ public class ExclusiveCarPlanGenerator implements CandidateGenerator {
 				modes.remove(TransportMode.pt);
 				modes.remove(TransportMode.bike);
 
-				choices = generator.generate(planModel, modes, mask);
+				choices = generator.generate(planModel, modes, null);
 				if (choices.isEmpty())
 					return null;
 

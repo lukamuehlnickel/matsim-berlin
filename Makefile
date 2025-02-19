@@ -1,7 +1,7 @@
 
 
 JAR := matsim-berlin-*.jar
-V := v6.3
+V := v6.4
 CRS := EPSG:25832
 
 p := input/$V
@@ -38,6 +38,12 @@ input/facilities.gpkg: input/brandenburg.osm.pbf
 	 --input $<\
 	 --output $@
 
+# This facility file is using an older version that matches the reference visitations more closely
+input/ref_facilities.gpkg: input/facilities.osm.pbf
+	$(sc) prepare facility-shp\
+	 --activity-mapping input/activity_mapping.json\
+	 --input $<\
+	 --output $@
 
 input/PLR_2013_2020.csv:
 	curl https://instantatlas.statistik-berlin-brandenburg.de/instantatlas/interaktivekarten/kommunalatlas/Kommunalatlas.zip --insecure -o atlas.zip
@@ -53,8 +59,9 @@ $(berlin)/input/shp/Planungsraum_EPSG_25833.shp:
 
 input/network.osm: input/brandenburg.osm.pbf
 
+	# Detailed network includes bikes as well
 	$(osmosis) --rb file=$<\
-	 --tf accept-ways highway=motorway,motorway_link,trunk,trunk_link,primary,primary_link,secondary_link,secondary,tertiary,motorway_junction,residential,living_street,unclassified\
+	 --tf accept-ways bicycle=designated highway=motorway,motorway_link,trunk,trunk_link,primary,primary_link,secondary_link,secondary,tertiary,motorway_junction,residential,living_street,unclassified,cycleway\
 	 --bounding-polygon file="$p/area/area.poly"\
 	 --used-node --wb input/network-detailed.osm.pbf
 
@@ -81,9 +88,9 @@ input/sumo.net.xml: input/network.osm
 	 --no-internal-links --keep-edges.by-vclass passenger,truck,bicycle\
 	 --remove-edges.by-vclass hov,tram,rail,rail_urban,rail_fast,pedestrian\
 	 --output.original-names --output.street-names\
-	 --osm.lane-access true	--osm.bike-access true\
+	 --osm.lane-access false --osm.bike-access false\
 	 --osm.all-attributes\
-	 --osm.extra-attributes tunnel,highway,traffic_sign,bus:lanes,bus:lanes:forward,bus:lanes:backward,cycleway,cycleway:right,cycleway:left\
+	 --osm.extra-attributes smoothness,surface,crossing,tunnel,traffic_sign,bus:lanes,bus:lanes:forward,bus:lanes:backward,cycleway,cycleway:right,cycleway:left,bicycle\
 	 --proj "+proj=utm +zone=32 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs"\
 	 --osm-files $< -o=$@
 
@@ -91,7 +98,7 @@ input/sumo.net.xml: input/network.osm
 $p/berlin-$V-network.xml.gz: input/sumo.net.xml
 	$(sc) prepare network-from-sumo $< --target-crs $(CRS) --lane-restrictions REDUCE_CAR_LANES --output $@
 
-	$(sc) prepare clean-network $@  --output $@ --modes car,ride,truck --remove-turn-restrictions
+	$(sc) prepare clean-network $@  --output $@ --modes car,bike,ride,truck --remove-turn-restrictions
 
 	$(sc) prepare reproject-network\
 	 --input $@	--output $@\
@@ -114,9 +121,22 @@ $p/berlin-$V-network.xml.gz: input/sumo.net.xml
 
 $p/berlin-$V-network-with-pt.xml.gz: $p/berlin-$V-network.xml.gz
 	$(sc) prepare transit-from-gtfs --network $< --output=$p\
-	 --name berlin-$V --date "2023-06-07" --target-crs $(CRS) \
-	 $(germany)/gtfs/complete-pt-2023-06-06.zip\
+	 --name berlin-$V --date "2024-11-19" --target-crs $(CRS) \
+	 $(germany)/gtfs/complete-pt-2024-10-27.zip\
+	 --copy-late-early\
+	 --transform-stops org.matsim.prepare.pt.CorrectStopLocations\
+	 --transform-routes org.matsim.prepare.pt.CorrectRouteTypes\
+	 --transform-schedule org.matsim.application.prepare.pt.AdjustSameDepartureTimes\
+	 --pseudo-network withLoopLinks\
+	 --merge-stops mergeToParentAndRouteTypes\
 	 --shp $p/pt-area/pt-area.shp
+
+	$(sc) prepare endless-circle-line\
+ 	  --network $p/berlin-$V-network-with-pt.xml.gz\
+ 	  --transit-schedule $p/berlin-$V-transitSchedule.xml.gz\
+ 	  --transit-vehicles $p/berlin-$V-transitVehicles.xml.gz\
+ 	  --output-transit-schedule $p/berlin-$V-transitSchedule.xml.gz\
+	  --output-transit-vehicles $p/berlin-$V-transitVehicles.xml.gz
 
 $p/berlin-$V-counts-vmz.xml.gz: $p/berlin-$V-network.xml.gz
 	$(sc) prepare counts-from-vmz\
@@ -128,9 +148,19 @@ $p/berlin-$V-counts-vmz.xml.gz: $p/berlin-$V-network.xml.gz
 	 --target-crs $(CRS)\
 	 --counts-mapping input/counts_mapping.csv
 
-$p/berlin-$V-facilities.xml.gz: $p/berlin-$V-network.xml.gz input/facilities.gpkg
+$p/berlin-$V-facilities.xml.gz: $p/berlin-$V-network.xml.gz input/facilities.gpkg $(berlin)/input/shp/Planungsraum_EPSG_25833.shp
 	$(sc) prepare facilities --network $< --shp $(word 2,$^)\
+	 --facility-mapping input/facility_mapping.json\
+	 --zones-shp $(word 3,$^)\
 	 --output $@
+
+$p/berlin-only-$V-100pct.plans.xml.gz: input/PLR_2013_2020.csv $(berlin)/input/shp/Planungsraum_EPSG_25833.shp input/facilities.gpkg
+	$(sc) prepare berlin-population\
+		--input $<\
+		--sample 1.0\
+		--shp $(word 2,$^) --shp-crs EPSG:25833\
+		--facilities $(word 3,$^) --facilities-attr resident\
+		--output $@
 
 $p/berlin-only-$V-25pct.plans.xml.gz: input/PLR_2013_2020.csv $(berlin)/input/shp/Planungsraum_EPSG_25833.shp input/facilities.gpkg
 	$(sc) prepare berlin-population\
@@ -174,6 +204,7 @@ $p/berlin-initial-$V-25pct.plans.xml.gz: $p/berlin-activities-$V-25pct.plans.xml
 	 --network $(word 3,$^)\
 	 --shp $(germany)/vg5000/vg5000_ebenen_0101/VG5000_GEM.shp\
 	 --commuter $(germany)/regionalstatistik/commuter.csv\
+	 --berlin-commuter input/berlin-work-commuter.csv
 
 	# For debugging and visualization
 	$(sc) prepare downsample-population $@\
@@ -269,11 +300,15 @@ $p/berlin-$V-25pct.plans_cadyts.xml.gz:
 
 # These depend on the output of optimization runs
 $p/berlin-$V-25pct.plans-initial.xml.gz: $p/berlin-$V-facilities.xml.gz $p/berlin-$V-network.xml.gz $p/berlin-longHaulFreight-$V-25pct.plans.xml.gz
-	$(sc) prepare filter-relevant-agents\
-	 --input $p/berlin-$V-25pct.plans_log_error.xml.gz --output $@\
-	 --shp input/$V/area/area.shp\
+	$(sc) prepare scenario-cutout\
+	 --population $p/berlin-$V-25pct.plans_cadyts.xml.gz\
 	 --facilities $<\
-	 --network $(word 2,$^)
+	 --network $(word 2,$^)\
+	 --output-population $@\
+	 --output-network $p/network-cutout.xml.gz\
+	 --output-facilities $p/facilities-cutout.xml.gz\
+	 --input-crs $(CRS)\
+	 --shp input/$V/area/area.shp
 
 	$(sc) prepare split-activity-types-duration\
  	 --exclude commercial_start,commercial_end,freight_start,freight_end\
@@ -294,13 +329,18 @@ $p/berlin-$V-25pct.plans-initial.xml.gz: $p/berlin-$V-facilities.xml.gz $p/berli
 
 $p/berlin-$V-10pct.plans.xml.gz:
 	$(sc) prepare clean-population\
-	 --plans mode-choice-10pct-default-v2/runs/008/008.output_plans.xml.gz\
+	 --plans mode-choice-10pct-baseline/runs/008/008.output_plans.xml.gz\
 	 --remove-unselected-plans\
 	 --output $@
 
 	$(sc) prepare downsample-population $@\
 		--sample-size 0.1\
-		--samples 0.03 0.01 0.001\
+		--samples 0.01 0.001\
+
+	$(sc) prepare clean-population\
+	 	--plans choice-experiments/baseline/runs/008/008.output_plans.xml.gz\
+	 	--remove-unselected-plans\
+	 	--output $(subst 10pct,3pct,$@)
 
 
 $p/berlin-$V.drt-by-rndLocations-10000vehicles-4seats.xml.gz: $p/berlin-$V-network.xml.gz
@@ -310,6 +350,14 @@ $p/berlin-$V.drt-by-rndLocations-10000vehicles-4seats.xml.gz: $p/berlin-$V-netwo
 	 --output $p/berlin-$V.\
 	 --vehicles 10000\
 	 --seats 4
+
+	$(sc) prepare create-drt-vehicles\
+	 --network $<\
+	 --shp "https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/berlin/berlin-$V/input/shp/berlin_inner_city.gpkg"\
+	 --output $p/berlin-$V.\
+	 --vehicles 500\
+	 --seats 4
+
 
 prepare-calibration: $p/berlin-cadyts-input-$V-25pct.plans.xml.gz $p/berlin-$V-network-with-pt.xml.gz $p/berlin-$V-counts-vmz.xml.gz
 	echo "Done"

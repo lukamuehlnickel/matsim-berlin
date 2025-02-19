@@ -5,7 +5,7 @@ from collections import namedtuple, defaultdict
 
 import numpy as np
 import pandas as pd
-from scipy.stats import truncnorm
+from scipy.stats import truncnorm, gumbel_r
 
 # Cost parameter from current berlin model
 daily_costs = defaultdict(lambda: 0.0, car=-14.30, pt=-3)
@@ -16,6 +16,11 @@ TN = truncnorm(0, np.inf)
 PlanChoice = namedtuple("PlanChoice", ["df", "modes", "varying", "k", "global_income"])
 TripChoice = namedtuple("TripChoice", ["df", "modes", "varying", "global_income"])
 
+
+# Set pandas options, when this package is used
+pd.set_option('display.max_rows', 500)
+pd.set_option('display.max_columns', 500)
+pd.set_option('display.width', 1000)
 
 def read_global_income(input_file: str) -> float:
     """ Read global income from input file """
@@ -45,8 +50,24 @@ def read_plan_choices(input_file: str, sample: float = 1, seed: int = 42) -> Pla
     if sample < 1:
         df_wide = df_wide.sample(frac=sample, random_state=seed)
 
-    print("Modes:", modes)
     print("Number of choices:", len(df_wide))
+
+    delete = set()
+
+    # Generate boolean indicator variables for mode usage on each trip
+    for i in range(1, k + 1):
+        # Max number of trips per plan,
+        for j in range(7):
+            for mode in modes:
+                df_wide[f"plan_{i}_trip_{j}_mode_{mode}"] = df_wide[f"plan_{i}_trip_{j}_mode"] == mode
+
+            delete.add(f"plan_{i}_trip_{j}_mode")
+
+        # Defragment df
+        df_wide = df_wide.copy()
+
+    # Only keep the indicator columns
+    df_wide = df_wide.drop(columns=delete)
 
     df_wide['custom_id'] = np.arange(len(df_wide))  # Add unique identifier
     df_wide['choice'] = df_wide['choice'].map({1: "plan_1"})
@@ -65,6 +86,11 @@ def tn_generator(sample_size: int, number_of_draws: int) -> np.ndarray:
     """
     return TN.rvs((sample_size, number_of_draws))
 
+def gumbel_generator(sample_size: int, number_of_draws: int) -> np.ndarray:
+    """
+    User-defined random number generator for gumbel distribution
+    """
+    return gumbel_r.rvs(size=(sample_size, number_of_draws))
 
 def calc_plan_variables(df, k, modes, use_util_money=False, add_util_performing=True):
     """ Calculate utility and costs variables for all alternatives in the dataframe"""
@@ -84,6 +110,9 @@ def calc_plan_variables(df, k, modes, use_util_money=False, add_util_performing=
 
         # Price is only monetary costs
         df[f"plan_{i}_price"] = 0
+        df[f"plan_{i}_car_price"] = 0
+        df[f"plan_{i}_pt_price"] = 0
+        df[f"plan_{i}_other_price"] = 0
 
         # Costs will also include time costs
         df[f"plan_{i}_utils"] = 0
@@ -97,6 +126,15 @@ def calc_plan_variables(df, k, modes, use_util_money=False, add_util_performing=
 
             df[f"plan_{i}_{mode}_fixed_cost"] = fixed_costs
             df[f"plan_{i}_price"] += fixed_costs + distance_costs
+
+            if mode == "car":
+                df[f"plan_{i}_car_price"] += fixed_costs
+            elif mode == "pt":
+                df[f"plan_{i}_pt_price"] += fixed_costs
+            else:
+                df[f"plan_{i}_other_price"] += fixed_costs
+
+            df[f"plan_{i}_other_price"] += distance_costs
 
             df[f"plan_{i}_{mode}_used"] = (df[f"plan_{i}_{mode}_usage"] > 0) * 1
             df[f"plan_{i}_tt_hours"] -= df[f"plan_{i}_{mode}_hours"]
@@ -130,5 +168,13 @@ def read_trip_choices(input_file: str) -> TripChoice:
     varying = list(df.columns.str.extract(r"walk_([a-zA-z]+)", expand=False).dropna().unique())
 
     print("Varying:", varying)
+
+    dists = df.groupby("person").agg(dist=("beelineDist", "sum"))
+
+    # Trips weighted by distance during the whole day
+    dist_weight = df.beelineDist / dists.loc[df.person].dist.to_numpy()
+    df["dist_weight"] = dist_weight
+
+    df.dist_weight = df.dist_weight.fillna(1)
 
     return TripChoice(df, modes, varying, read_global_income(input_file))

@@ -112,6 +112,6 @@ public class AbfallChessboardUtils {
 		carrierChessboard.setCarrierCapabilities(carrierCapabilities);
 
 		// Fahrzeugtypen den Anbietern zuordenen
-		new CarrierVehicleTypeLoader(carriers).loadVehicleTypes(carrierVehicleTypes);
+//		new CarrierVehicleTypeLoader(carriers).loadVehicleTypes(carrierVehicleTypes);
 	}
 }

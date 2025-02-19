@@ -168,6 +168,7 @@ public class ComputeTripChoices implements MATSimAppCommand {
 				header.add(mode + "_km");
 				header.add(mode + "_hours");
 				header.add(mode + "_walking_km");
+				header.add(mode + "_switches");
 				header.add(mode + "_valid");
 			}
 
@@ -233,16 +234,19 @@ public class ComputeTripChoices implements MATSimAppCommand {
 				}
 			}
 
-			// Filter rows that have been chosen, but would not be valid
-			if (choice.equals(mode) && !valid) {
-				return null;
-			}
+			// This is mainly used for PT, to count the number of switches
+			long switches = route.stream().filter(r -> r instanceof Leg l && l.getMode().equals(mode)).count() - 1;
 
 			if (!PersonUtils.canUseCar(person) && mode.equals(TransportMode.car)) {
 				valid = false;
 			}
 
-			row.addAll(List.of(travelDistance / 1000, travelTime / 3600, walkDistance / 1000, valid));
+			// Filter rows that have been chosen, but would not be valid
+			if (choice.equals(mode) && !valid) {
+				return null;
+			}
+
+			row.addAll(List.of(travelDistance / 1000, travelTime / 3600, walkDistance / 1000, switches, valid));
 		}
 
 		return row;

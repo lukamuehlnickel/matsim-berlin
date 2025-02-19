@@ -1,12 +1,14 @@
 package org.matsim.prepare.facilities;
 
-import com.google.common.math.Quantiles;
+import com.fasterxml.jackson.annotation.JsonAnyGetter;
+import com.fasterxml.jackson.annotation.JsonAnySetter;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import it.unimi.dsi.fastutil.objects.Object2DoubleMap;
 import it.unimi.dsi.fastutil.objects.Object2DoubleOpenHashMap;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
-import org.apache.commons.math3.stat.descriptive.SummaryStatistics;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.geotools.api.feature.simple.SimpleFeature;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.TopologyException;
@@ -23,36 +25,44 @@ import org.matsim.core.utils.geometry.CoordUtils;
 import org.matsim.core.utils.geometry.geotools.MGC;
 import org.matsim.facilities.*;
 import org.matsim.prepare.population.Attributes;
-import org.geotools.api.feature.simple.SimpleFeature;
+import org.matsim.run.OpenBerlinScenario;
 import picocli.CommandLine;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @CommandLine.Command(
-		name = "facilities",
-		description = "Creates MATSim facilities from shape-file and network"
+	name = "facilities",
+	description = "Creates MATSim facilities from shape-file and network"
 )
 public class CreateMATSimFacilities implements MATSimAppCommand {
-
-	private static final Logger log = LogManager.getLogger(CreateMATSimFacilities.class);
 
 	/**
 	 * Filter link types that don't have a facility associated.
 	 */
 	public static final Set<String> IGNORED_LINK_TYPES = Set.of("motorway", "trunk",
-			"motorway_link", "trunk_link", "secondary_link", "primary_link");
-
+		"motorway_link", "trunk_link", "secondary_link", "primary_link");
+	private static final Logger log = LogManager.getLogger(CreateMATSimFacilities.class);
 	@CommandLine.Option(names = "--network", required = true, description = "Path to car network")
 	private Path network;
 
 	@CommandLine.Option(names = "--output", required = true, description = "Path to output facility file")
 	private Path output;
 
+	@CommandLine.Option(names = "--facility-mapping", description = "Path to facility napping json", required = true)
+	private Path mappingPath;
+
+	@CommandLine.Option(names = "--zones-shp", description = "Path to shp file with zonal system", required = false)
+	private Path zonesPath;
+
 	@CommandLine.Mixin
 	private ShpOptions shp;
+
+	private MappingConfig config;
 
 	public static void main(String[] args) {
 		new CreateMATSimFacilities().execute(args);
@@ -67,11 +77,22 @@ public class CreateMATSimFacilities implements MATSimAppCommand {
 		byte[] bytes = new byte[3];
 		do {
 			rnd.nextBytes(bytes);
-			id = Id.create( "f" + HexFormat.of().formatHex(bytes), ActivityFacility.class);
+			id = Id.create("f" + HexFormat.of().formatHex(bytes), ActivityFacility.class);
 
 		} while (facilities.getFacilities().containsKey(id));
 
 		return id;
+	}
+
+	private static double round(double f) {
+		return BigDecimal.valueOf(f).setScale(4, RoundingMode.HALF_UP).doubleValue();
+	}
+
+	private static boolean hasAttribute(SimpleFeature ft, String name) {
+		return ft.getAttribute(name) != null &&
+			(Boolean.TRUE.equals(ft.getAttribute(name)) || "1".equals(ft.getAttribute(name)) ||
+				(ft.getAttribute(name) instanceof Number number && number.intValue() > 0)
+			);
 	}
 
 	@Override
@@ -81,6 +102,11 @@ public class CreateMATSimFacilities implements MATSimAppCommand {
 			log.error("Shp file with facilities is required.");
 			return 2;
 		}
+
+		config = new ObjectMapper().readerFor(MappingConfig.class).readValue(mappingPath.toFile());
+
+		ShpOptions zoneShp = zonesPath != null ? new ShpOptions(zonesPath, "EPSG:25833", null) : null;
+		ShpOptions.Index zones = zoneShp != null ? zoneShp.createIndex(OpenBerlinScenario.CRS, "SCHLUESSEL") : null;
 
 		Network completeNetwork = NetworkUtils.readNetwork(this.network.toString());
 		TransportModeNetworkFilter filter = new TransportModeNetworkFilter(completeNetwork);
@@ -104,8 +130,11 @@ public class CreateMATSimFacilities implements MATSimAppCommand {
 		}
 
 		// Upper bounds for attraction
-		double workUpper = work.getPercentile(95);
-		double otherUpper = other.getPercentile(95);
+		double workUpper = work.getPercentile(99.99);
+		double otherUpper = other.getPercentile(99.99);
+
+		log.info("Work upper bound: {}", workUpper);
+		log.info("Other upper bound: {}", otherUpper);
 
 		ActivityFacilities facilities = FacilitiesUtils.createActivityFacilities();
 
@@ -130,14 +159,21 @@ public class CreateMATSimFacilities implements MATSimAppCommand {
 				facility.addActivityOption(f.createActivityOption(act));
 			}
 
-			// Filter outliers from the attraction and normalize the attraction
-			// This warrant for further investigate as the best way to normalize the attraction is not yet known
+			// Filter outliers from the attraction
 			facility.getAttributes().putAttribute(Attributes.ATTRACTION_WORK,
-				Math.min(Math.max(h.attractionWork / 5, 1), workUpper)
+				round(Math.min(Math.max(h.attractionWork, 5), workUpper))
 			);
 			facility.getAttributes().putAttribute(Attributes.ATTRACTION_OTHER,
-				Math.min(Math.max(h.attractionOther / 5, 1), otherUpper)
+				round(Math.min(Math.max(h.attractionOther, 5), otherUpper))
 			);
+
+			if (zones != null) {
+				String zone = zones.query(facility.getCoord());
+				if (zone != null) {
+					facility.getAttributes().putAttribute(Attributes.LOR, Integer.parseInt(zone));
+					facility.getAttributes().putAttribute(Attributes.ZONE, zone.substring(0, 2));
+				}
+			}
 
 			facilities.addActivityFacility(facility);
 		}
@@ -151,7 +187,7 @@ public class CreateMATSimFacilities implements MATSimAppCommand {
 	}
 
 	/**
-	 * Sample points and choose link with the nearest points. Aggregate everything so there is at most one facility per link.
+	 * Sample points and choose link with the nearest points.
 	 */
 	private Holder processFeature(SimpleFeature ft, Network network) {
 
@@ -164,8 +200,8 @@ public class CreateMATSimFacilities implements MATSimAppCommand {
 		List<Id<Link>> links = coords.stream().map(coord -> NetworkUtils.getNearestLinkExactly(network, coord).getId()).toList();
 
 		Map<Id<Link>, Long> map = links.stream()
-				.filter(l -> !IGNORED_LINK_TYPES.contains(NetworkUtils.getType(network.getLinks().get(l))))
-				.collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
+			.filter(l -> !IGNORED_LINK_TYPES.contains(NetworkUtils.getType(network.getLinks().get(l))))
+			.collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
 
 		// Everything could be filtered and map empty
 		if (map.isEmpty())
@@ -178,17 +214,15 @@ public class CreateMATSimFacilities implements MATSimAppCommand {
 			}
 		}
 
-		double area = (double) ft.getAttribute("area");
-
 		List<Map.Entry<Id<Link>, Long>> counts = map.entrySet().stream().sorted(Map.Entry.comparingByValue())
-				.toList();
+			.toList();
 
 		// The "main" link of the facility
 		Id<Link> link = counts.get(counts.size() - 1).getKey();
 
 		Holder holder = new Holder(link, activities, new ArrayList<>(),
-			area * FacilityAttractionModelWork.INSTANCE.predict(features, null),
-			area * FacilityAttractionModelOther.INSTANCE.predict(features, null)
+			FacilityAttractionModelWork.INSTANCE.predict(features, null),
+			FacilityAttractionModelOther.INSTANCE.predict(features, null)
 		);
 
 		// Search for the original drawn coordinate of the associated link
@@ -215,8 +249,8 @@ public class CreateMATSimFacilities implements MATSimAppCommand {
 		for (int i = 0; i < max && result.size() < n; i++) {
 
 			Coord coord = CoordUtils.round(new Coord(
-					bbox.getMinX() + (bbox.getMaxX() - bbox.getMinX()) * rnd.nextDouble(),
-					bbox.getMinY() + (bbox.getMaxY() - bbox.getMinY()) * rnd.nextDouble()
+				bbox.getMinX() + (bbox.getMaxX() - bbox.getMinX()) * rnd.nextDouble(),
+				bbox.getMinY() + (bbox.getMaxY() - bbox.getMinY()) * rnd.nextDouble()
 			));
 
 			try {
@@ -240,45 +274,13 @@ public class CreateMATSimFacilities implements MATSimAppCommand {
 	private Set<String> activities(SimpleFeature ft) {
 		Set<String> act = new HashSet<>();
 
-		if (hasAttribute(ft, "work")) {
-			act.add("work");
-			act.add("work_business");
+		for (Map.Entry<String, Set<String>> entries : config.values.entrySet()) {
+			if (hasAttribute(ft, entries.getKey())) {
+				act.addAll(entries.getValue());
+			}
 		}
-		if (hasAttribute(ft, "shop")) {
-			act.add("shop_other");
-		}
-		if (hasAttribute(ft, "shop_daily")) {
-			act.add("shop_other");
-			act.add("shop_daily");
-		}
-		if (hasAttribute(ft, "leisure"))
-			act.add("leisure");
-		if (hasAttribute(ft, "dining"))
-			act.add("dining");
-		if (hasAttribute(ft, "edu_higher"))
-			act.add("edu_higher");
-		if (hasAttribute(ft, "edu_prim")) {
-			act.add("edu_primary");
-			act.add("edu_secondary");
-		}
-		if (hasAttribute(ft, "edu_kiga"))
-			act.add("edu_kiga");
-		if (hasAttribute(ft, "edu_other"))
-			act.add("edu_other");
-		if (hasAttribute(ft, "p_business") || hasAttribute(ft, "medical") || hasAttribute(ft, "religious")) {
-			act.add("personal_business");
-		}
-		if (hasAttribute(ft, "p_business"))
-			act.add("work_business");
 
 		return act;
-	}
-
-	private static boolean hasAttribute(SimpleFeature ft, String name) {
-		return ft.getAttribute(name) != null &&
-			(Boolean.TRUE.equals(ft.getAttribute(name)) ||
-				(ft.getAttribute(name) instanceof Number number && number.intValue() > 0)
-			);
 	}
 
 	/**
@@ -286,6 +288,24 @@ public class CreateMATSimFacilities implements MATSimAppCommand {
 	 */
 	private record Holder(Id<Link> linkId, Set<String> activities, List<Coord> coords,
 						  double attractionWork, double attractionOther) {
+	}
+
+	/**
+	 * Helper class to define data structure for mapping.
+	 */
+	public static final class MappingConfig {
+
+		private final Map<String, Set<String>> values = new HashMap<>();
+
+		@JsonAnyGetter
+		public Set<String> getActivities(String value) {
+			return values.get(value);
+		}
+
+		@JsonAnySetter
+		private void setActivities(String value, Set<String> activities) {
+			values.put(value, activities);
+		}
 
 	}
 

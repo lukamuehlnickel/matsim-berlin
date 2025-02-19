@@ -20,6 +20,8 @@ public class RunOpenBerlinScenarioTest {
 			"--1pct",
 			"--output", utils.getOutputDirectory(),
 			"--iterations", "2",
+			"--config:qsim.numberOfThreads", "2",
+			"--config:global.numberOfThreads", "2",
 			"--config:simwrapper.defaultDashboards", "disabled"
 		);
 
