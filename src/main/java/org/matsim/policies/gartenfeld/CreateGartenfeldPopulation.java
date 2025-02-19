@@ -11,7 +11,7 @@ import picocli.CommandLine;
 @CommandLine.Command(name = "create-gartenfeld-population", description = "Create the population for the Gartenfeld scenario.")
 public class CreateGartenfeldPopulation implements MATSimAppCommand {
 
-	private final static String SVN = "../shared-svn/projects/matsim-germany";
+	private static final String SVN = "../shared-svn/projects/matsim-germany";
 
 	@CommandLine.Option(names = "--output", description = "Path to output population", defaultValue = "input/gartenfeld/gartenfeld-population-10pct.xml.gz")
 	private String output;
@@ -21,6 +21,7 @@ public class CreateGartenfeldPopulation implements MATSimAppCommand {
 	}
 
 	@Override
+	@SuppressWarnings("MultipleStringLiteralsExtended")
 	public Integer call() throws Exception {
 
 		new CreateFixedPopulation().execute(
