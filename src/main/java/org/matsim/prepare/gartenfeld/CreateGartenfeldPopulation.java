@@ -1,10 +1,9 @@
-package org.matsim.policies.gartenfeld;
+package org.matsim.prepare.gartenfeld;
 
 import org.matsim.application.MATSimAppCommand;
 import org.matsim.application.prepare.population.*;
 import org.matsim.prepare.population.CreateFixedPopulation;
 import org.matsim.prepare.population.InitLocationChoice;
-import org.matsim.prepare.population.RemoveUnavailableRoutes;
 import org.matsim.prepare.population.RunActivitySampling;
 import org.matsim.run.OpenBerlinScenario;
 import picocli.CommandLine;
@@ -85,17 +84,6 @@ public class CreateGartenfeldPopulation implements MATSimAppCommand {
 			"--output", output
 		);
 
-		new RemoveUnavailableRoutes().execute(
-			"--input", output,
-			"--network", "input/gartenfeld/gartenfeld-network.xml.gz",
-			"--output", output
-		);
-
-		new DownSamplePopulation().execute(
-			 output,
-			"--sample-size", "0.1",
-			"--samples", "0.01"
-		);
 
 		return 0;
 	}

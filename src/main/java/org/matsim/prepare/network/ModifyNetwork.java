@@ -72,7 +72,10 @@ public class ModifyNetwork implements MATSimAppCommand {
 		MultimodalNetworkCleaner cleaner = new MultimodalNetworkCleaner(network);
 
 		cleaner.run(Set.of(TransportMode.car));
+		cleaner.run(Set.of(TransportMode.ride));
 		cleaner.run(Set.of(TransportMode.bike));
+		cleaner.run(Set.of(TransportMode.truck));
+		cleaner.run(Set.of("freight"));
 
 		NetworkUtils.writeNetwork(network, output.toString());
 

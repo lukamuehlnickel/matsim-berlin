@@ -13,6 +13,9 @@ test/output
 *.iml
 .idea/
 
+*.gpkg-shm
+*.gpkg-wal
+
 # Created by https://www.toptal.com/developers/gitignore/api/r,osx,java,linux,maven,python,eclipse,windows,intellij+all,jupyternotebooks
 # Edit at https://www.toptal.com/developers/gitignore?templates=r,osx,java,linux,maven,python,eclipse,windows,intellij+all,jupyternotebooks
 
