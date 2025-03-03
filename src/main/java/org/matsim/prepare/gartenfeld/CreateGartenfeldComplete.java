@@ -17,19 +17,21 @@ public class CreateGartenfeldComplete {
 
 	public static void main(String[] args) {
 
-		String full = "input/gartenfeld/gartenfeld-population-full.xml.gz";
-		if (!Files.exists(Path.of(full))) {
+		String fullPopulation = "input/gartenfeld/gartenfeld-v6.4.population-full-10pct.xml.gz";
+		if (!Files.exists(Path.of(fullPopulation))) {
 			new CreateGartenfeldPopulation().execute(
-				"--output", full
+				"--output", fullPopulation
 			);
 		}
 
-		String population = "input/gartenfeld/gartenfeld-population-10pct.xml.gz";
-		String network = "input/gartenfeld/gartenfeld-network.xml.gz";
+		String population = "input/gartenfeld/gartenfeld-v6.4.population-cutout-10pct.xml.gz";
+		String network = "input/gartenfeld/gartenfeld-v6.4.network-cutout.xml.gz";
+		String fullNetwork = "input/gartenfeld/gartenfeld-v6.4.network.xml.gz";
+		String berlinNetwork = "input/v%s/berlin-v%s-network-with-pt.xml.gz".formatted(OpenBerlinScenario.VERSION, OpenBerlinScenario.VERSION);
 
 		new CreateScenarioCutOut().execute(
-			"--network", "input/v%s/berlin-v%s-network-with-pt.xml.gz".formatted(OpenBerlinScenario.VERSION, OpenBerlinScenario.VERSION),
-			"--population", full,
+			"--network", berlinNetwork,
+			"--population", fullPopulation,
 			"--facilities", "input/v%s/berlin-v%s-facilities.xml.gz".formatted(OpenBerlinScenario.VERSION, OpenBerlinScenario.VERSION),
 			"--events", "https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/berlin/berlin-v%s/output/berlin-v%s-10pct/berlin-v%s.output_events.xml.gz".formatted(OpenBerlinScenario.VERSION, OpenBerlinScenario.VERSION, OpenBerlinScenario.VERSION),
 			"--shp", "input/gartenfeld/DNG_dilution_area.gpkg",
@@ -38,22 +40,34 @@ public class CreateGartenfeldComplete {
 			"--clean-modes", "truck,freight,ride",
 			"--output-network", network,
 			"--output-population", population,
-			"--output-facilities", "input/gartenfeld/gartenfeld-facilities.xml.gz",
-			"--output-network-change-events", "input/gartenfeld/gartenfeld-network-change-events.xml.gz"
+			"--output-facilities", "input/gartenfeld/gartenfeld-v6.4.facilities.xml.gz",
+			"--output-network-change-events", "input/gartenfeld/gartenfeld-v6.4.network-change-events.xml.gz"
 		);
 
-		// Apply the network modifications on the cut-out scenario
-		new ModifyNetwork().execute(
-			"--network", network,
-			"--remove-links", "input/gartenfeld/DNG_LinksToDelete.txt",
-			"--shp", "input/gartenfeld/DNG_network.gpkg",
-			"--output", network
-		);
+		createNetwork(network, network,"input/gartenfeld/DNG_network.gpkg");
+		createNetwork(berlinNetwork, fullNetwork,"input/gartenfeld/DNG_network.gpkg");
+
+		createNetwork(network, "input/gartenfeld/networks/gartenfeld-v6.4.network-onelinkgarage-cutout.xml.gz","input/gartenfeld/DNG_network_onelinkgarage.gpkg");
+		createNetwork(fullNetwork, "input/gartenfeld/networks/gartenfeld-v6.4.network-onelinkgarage.xml.gz","input/gartenfeld/DNG_network_onelinkgarage.gpkg");
+		createNetwork(network, "input/gartenfeld/networks/gartenfeld-v6.4.network-twolinkgarage-cutout.xml.gz","input/gartenfeld/DNG_network_twolinkgarage.gpkg");
+		createNetwork(fullNetwork, "input/gartenfeld/networks/gartenfeld-v6.4.network-twolinkgarage.xml.gz","input/gartenfeld/DNG_network_twolinkgarage.gpkg");
+		createNetwork(network, "input/gartenfeld/networks/gartenfeld-v6.4.network-threelinkgarage-cutout.xml.gz","input/gartenfeld/DNG_network_threelinkgarage.gpkg");
+		createNetwork(fullNetwork, "input/gartenfeld/networks/gartenfeld-v6.4.network-threelinkgarage.xml.gz","input/gartenfeld/DNG_network_threelinkgarage.gpkg");
+		createNetwork(network, "input/gartenfeld/networks/gartenfeld-v6.4.network-fourlinkgarage-cutout.xml.gz","input/gartenfeld/DNG_network_fourlinkgarage.gpkg");
+		createNetwork(fullNetwork, "input/gartenfeld/networks/gartenfeld-v6.4.network-fourlinkgarage.xml.gz","input/gartenfeld/DNG_network_fourlinkgarage.gpkg");
+
+
 
 		new PersonNetworkLinkCheck().execute(
 			"--input", population,
 			"--network", network,
 			"--output", population
+		);
+
+		new PersonNetworkLinkCheck().execute(
+			"--input", fullPopulation,
+			"--network", fullNetwork,
+			"--output", fullPopulation
 		);
 
 		new DownSamplePopulation().execute(
@@ -62,6 +76,22 @@ public class CreateGartenfeldComplete {
 			"--samples", "0.01"
 		);
 
+		new DownSamplePopulation().execute(
+			fullPopulation,
+			"--sample-size", "0.1",
+			"--samples", "0.01"
+		);
+
 	}
 
+	private static void createNetwork(String network, String outputNetwork, String shp) {
+
+		new ModifyNetwork().execute(
+			"--network", network,
+			"--remove-links", "input/gartenfeld/DNG_LinksToDelete.txt",
+			"--shp", shp,
+			"--output", outputNetwork
+		);
+
+	}
 }
