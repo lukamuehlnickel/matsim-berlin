@@ -12,9 +12,9 @@ public final class RunGartenfeldScenario {
 	}
 
 	public static void main(String[] args) {
-		MATSimApplication.runWithDefaults(OpenBerlinScenario.class, args,
+		MATSimApplication.runWithDefaults(GartenfeldScenario.class, args,
+			"--parking-garages", "NO_GARAGE",
 			"--config:network.inputChangeEventsFile", "../../input/gartenfeld/gartenfeld-v6.4.network-change-events.xml.gz",
-			"--config:network.timeVariantNetwork", "true",
 			"--config:facilities.inputFacilitiesFile", "../../input/gartenfeld/gartenfeld-v6.4.facilities.xml.gz",
 			"--config:controller.runId", "gartenfeld-v6.4.cutout-base-1pct",
 			"--config:network.inputNetworkFile", "../../input/gartenfeld/gartenfeld-v6.4.network-cutout.xml.gz",

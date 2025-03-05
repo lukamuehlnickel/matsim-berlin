@@ -47,6 +47,9 @@ public class CreateGartenfeldComplete {
 		createNetwork(network, network,"input/gartenfeld/DNG_network.gpkg");
 		createNetwork(berlinNetwork, fullNetwork,"input/gartenfeld/DNG_network.gpkg");
 
+		/*
+		TODO: only single network will be needed
+
 		createNetwork(network, "input/gartenfeld/networks/gartenfeld-v6.4.network-onelinkgarage-cutout.xml.gz","input/gartenfeld/DNG_network_onelinkgarage.gpkg");
 		createNetwork(fullNetwork, "input/gartenfeld/networks/gartenfeld-v6.4.network-onelinkgarage.xml.gz","input/gartenfeld/DNG_network_onelinkgarage.gpkg");
 		createNetwork(network, "input/gartenfeld/networks/gartenfeld-v6.4.network-twolinkgarage-cutout.xml.gz","input/gartenfeld/DNG_network_twolinkgarage.gpkg");
@@ -55,7 +58,7 @@ public class CreateGartenfeldComplete {
 		createNetwork(fullNetwork, "input/gartenfeld/networks/gartenfeld-v6.4.network-threelinkgarage.xml.gz","input/gartenfeld/DNG_network_threelinkgarage.gpkg");
 		createNetwork(network, "input/gartenfeld/networks/gartenfeld-v6.4.network-fourlinkgarage-cutout.xml.gz","input/gartenfeld/DNG_network_fourlinkgarage.gpkg");
 		createNetwork(fullNetwork, "input/gartenfeld/networks/gartenfeld-v6.4.network-fourlinkgarage.xml.gz","input/gartenfeld/DNG_network_fourlinkgarage.gpkg");
-
+		 */
 
 
 		new PersonNetworkLinkCheck().execute(
