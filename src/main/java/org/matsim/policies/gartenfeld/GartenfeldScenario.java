@@ -58,7 +58,7 @@ public class GartenfeldScenario extends OpenBerlinScenario {
 				if (linkId.startsWith("network-DNG")) {
 
 					// First garage, a garage in any cases
-					if (linkId.startsWith("network-DNG.1"))
+					if (linkId.equals("network-DNG.1") || linkId.equals("network-DNG.1_r"))
 						continue;
 
 					// Second garage link
