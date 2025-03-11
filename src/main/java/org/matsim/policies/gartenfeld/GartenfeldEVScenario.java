@@ -31,8 +31,7 @@ public class GartenfeldEVScenario extends GartenfeldScenario {
     protected void prepareScenario(Scenario scenario) {
         super.prepareScenario(scenario);
 
-        // Add the EV charging infrastructure
-//        new GartenfeldEVCharging().addChargingInfrastructure(scenario);
+        //TODO: activate strategic ev charging for (specific) persons
     }
 
     @Override
