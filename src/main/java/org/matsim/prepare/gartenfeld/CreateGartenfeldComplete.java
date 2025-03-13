@@ -40,7 +40,7 @@ public class CreateGartenfeldComplete {
 			"--clean-modes", "truck,freight,ride",
 			"--output-network", network,
 			"--output-population", population,
-			"--output-facilities", "input/gartenfeld/gartenfeld-v6.4.facilities.xml.gz",
+			"--output-facilities", "input/gartenfeld/gartenfeld-v6.4.facilities-cutout.xml.gz",
 			"--output-network-change-events", "input/gartenfeld/gartenfeld-v6.4.network-change-events.xml.gz"
 		);
 

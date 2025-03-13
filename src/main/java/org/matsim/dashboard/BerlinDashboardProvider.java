@@ -23,7 +23,7 @@ public class BerlinDashboardProvider implements DashboardProvider {
 			.setAnalysisArgs("--match-id", "^berlin.+", "--shp-filter", "none")
 			.withChoiceEvaluation(true)
 			.withDistanceDistribution("mode_share_distance_distribution.csv")
-			.withGroupedRefData("mode_share_per_group_dist_ref.csv", "age", "income", "employment", "economic_status");
+			.withGroupedRefData("mode_share_per_group_dist_ref.csv", "age", "income", "employment", "economic_status","zone");
 
 		// TODO: The definition of this dashboard should probably be in a separate run class, but for now it is more convenient here
 

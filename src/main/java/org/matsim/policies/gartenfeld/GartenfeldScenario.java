@@ -1,6 +1,5 @@
 package org.matsim.policies.gartenfeld;
 
-import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.TransportMode;
 import org.matsim.api.core.v01.network.Link;
@@ -9,6 +8,7 @@ import org.matsim.application.MATSimApplication;
 import org.matsim.application.prepare.population.PersonNetworkLinkCheck;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
+import org.matsim.core.network.algorithms.MultimodalNetworkCleaner;
 import org.matsim.core.population.algorithms.ParallelPersonAlgorithmUtils;
 import org.matsim.run.OpenBerlinScenario;
 import picocli.CommandLine;
@@ -24,7 +24,7 @@ import java.util.Set;
  */
 public class GartenfeldScenario extends OpenBerlinScenario {
 
-	@CommandLine.Option(names = "--gartenfeld-config", description = "Path to configuration for Gartenfeld.", defaultValue = "input/gartenfeld/gartenfeld.xml")
+	@CommandLine.Option(names = "--gartenfeld-config", description = "Path to configuration for Gartenfeld.", defaultValue = "input/gartenfeld/gartenfeld.config.xml")
 	private String gartenFeldConfig;
 
 	@CommandLine.Option(names = "--parking-garages", description = "Enable parking garages.", defaultValue = "NO_GARAGE")
@@ -37,6 +37,8 @@ public class GartenfeldScenario extends OpenBerlinScenario {
 	@Override
 	protected Config prepareConfig(Config config) {
 
+		super.prepareConfig(config);
+
 		// Load the Gartenfeld specific part into the standard Berlin config
 		ConfigUtils.loadConfig(config, gartenFeldConfig);
 
@@ -46,7 +48,10 @@ public class GartenfeldScenario extends OpenBerlinScenario {
 	@Override
 	protected void prepareScenario(Scenario scenario) {
 
+		super.prepareScenario(scenario);
+
 		Network network = scenario.getNetwork();
+		Set<String> removeModes = Set.of(TransportMode.car, TransportMode.truck, "freight", TransportMode.ride);
 
 		if (garageType != GarageType.NO_GARAGE) {
 
@@ -72,14 +77,13 @@ public class GartenfeldScenario extends OpenBerlinScenario {
 						continue;
 
 					Set<String> allowedModes = new HashSet<>(link.getAllowedModes());
-					allowedModes.remove(TransportMode.car);
-					allowedModes.remove(TransportMode.truck);
-					allowedModes.remove(TransportMode.ride);
-					allowedModes.remove("freight");
-
+					allowedModes.removeAll(removeModes);
 					link.setAllowedModes(allowedModes);
 				}
 			}
+
+			MultimodalNetworkCleaner cleaner = new MultimodalNetworkCleaner(network);
+			removeModes.forEach(m -> cleaner.run(Set.of(m)));
 
 			// Clean link ids that are not valid anymore
 			ParallelPersonAlgorithmUtils.run(

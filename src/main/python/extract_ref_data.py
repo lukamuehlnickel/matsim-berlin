@@ -12,6 +12,27 @@ def person_filter(df):
     df = df[df.location == "Berlin"]
 
     df["age"] = preparation.cut(df.age, [0, 12, 18, 25, 35, 66, np.inf])
+    df["zone"] = df.zone.str.split("-", expand=True)[0]
+
+    # df["zone"] = df.zone.replace({
+    #     "1": "Mitte",
+    #     "2": "Friedrichshain-Kreuzberg",
+    #     "3": "Pankow",
+    #     "4": "Charlottenburg-Wilmersdorf",
+    #     "5": "Spandau",
+    #     "6": "Steglitz-Zehlendorf",
+    #     "7": "Tempelhof-Schöneberg",
+    #     "8": "Neukölln",
+    #     "9": "Treptow-Köpenick",
+    #     "10": "Marzahn-Hellersdorf",
+    #     "11": "Lichtenberg",
+    #     "12": "Reinickendorf"
+    # })
+
+
+
+
+
 
     preparation.fill(df, "income", -1)
     preparation.compute_economic_status(df)
@@ -38,7 +59,7 @@ if __name__ == "__main__":
         d + "Berlin+Umland",
         person_filter, trip_filter,
         run_create_ref_data.InvalidHandling.REMOVE_TRIPS,
-        ref_groups=["age", "income", "economic_status", "employment", "car_avail", "bike_avail", "pt_abo_avail"]
+        ref_groups=["age", "income", "economic_status", "employment", "car_avail", "bike_avail", "pt_abo_avail", "zone"]
     )
 
     print(result.share)

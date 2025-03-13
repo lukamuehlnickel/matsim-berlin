@@ -7,25 +7,25 @@
 
 	<module name="controller">
 		<param name="runId" value="gartenfeld-v6.4"/>
-		<param name="outputDirectory" value="./output/gartenfeld-v6.4-10pct"/>
+		<param name="outputDirectory" value="./output/gartenfeld-v6.4-cutout-1pct"/>
 	</module>
 
 	<module name="plans">
-		<param name="inputPlansFile" value="../../input/gartenfeld/gartenfeld-v6.4.population-cutout-10pct.xml.gz" />
+		<param name="inputPlansFile" value="/net/ils/kreuschner/gartenfeld/matsim-berlin-v6.4/input/cutout/gartenfeld-v6.4.population-cutout-1pct.xml.gz" />
 	</module>
 
 	<module name="network">
-		<param name="inputNetworkFile" value="../../input/gartenfeld/gartenfeld-v6.4.network-cutout.xml.gz" />
-		<param name="inputChangeEventsFile" value="../../input/gartenfeld/gartenfeld-v6.4.network-change-events.xml.gz"/>
-		<param name="timeVariantNetwork" value="true"/>
+		<param name="inputNetworkFile" value="/net/ils/kreuschner/gartenfeld/matsim-berlin-v6.4/input/cutout/gartenfeld-v6.4.network-cutout.xml.gz" />
+		<!-- <param name="inputChangeEventsFile" value="/net/ils/kreuschner/gartenfeld/matsim-berlin-v6.4/gartenfeld-v6.4.network-change-events.xml.gz"/>	-->
+		<param name="timeVariantNetwork" value="false"/>
 	</module>
 
 	<module name="facilities">
-		<param name="inputFacilitiesFile" value="../../input/gartenfeld/gartenfeld-v6.4.facilities.xml.gz" />
+		<param name="inputFacilitiesFile" value="/net/ils/kreuschner/gartenfeld/matsim-berlin-v6.4/berlin-v6.4-facilities.xml.gz" />
 	</module>
 
 	<module name="simwrapper" >
-		<param name="sampleSize" value="0.1" />
+		<param name="sampleSize" value="0.01" />
 
 		<parameterset type="params" >
 			<param name="context" value="" />
@@ -38,7 +38,7 @@
 			<param name="mapCenter" value="13.24,52.55" />
 			<param name="mapZoomLevel" value="14.2" />
 			<!-- Make sure this shp file is present relative to the config path -->
-			<param name="shp" value="./area/gartenfeld.gpkg" />
+			<param name="shp" value="./area/gartenfeld-shape.shp" />
 		</parameterset>
 	</module>
 
