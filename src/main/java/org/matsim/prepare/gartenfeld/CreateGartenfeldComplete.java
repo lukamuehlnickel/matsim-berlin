@@ -13,14 +13,17 @@ import java.nio.file.Path;
 /**
  * Utility class to create all necessary input files for the Gartenfeld scenario.
  */
-public class CreateGartenfeldComplete {
+public final class CreateGartenfeldComplete {
+
+	private CreateGartenfeldComplete() {
+	}
 
 	public static void main(String[] args) {
 
 		String fullPopulation = "input/gartenfeld/gartenfeld-v6.4.population-full-10pct.xml.gz";
 		if (!Files.exists(Path.of(fullPopulation))) {
 			new CreateGartenfeldPopulation().execute(
-				"--output", fullPopulation
+					"--output", fullPopulation
 			);
 		}
 
@@ -30,59 +33,45 @@ public class CreateGartenfeldComplete {
 		String berlinNetwork = "input/v%s/berlin-v%s-network-with-pt.xml.gz".formatted(OpenBerlinScenario.VERSION, OpenBerlinScenario.VERSION);
 
 		new CreateScenarioCutOut().execute(
-			"--network", berlinNetwork,
-			"--population", fullPopulation,
-			"--facilities", "input/v%s/berlin-v%s-facilities.xml.gz".formatted(OpenBerlinScenario.VERSION, OpenBerlinScenario.VERSION),
-			"--events", "https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/berlin/berlin-v%s/output/berlin-v%s-10pct/berlin-v%s.output_events.xml.gz".formatted(OpenBerlinScenario.VERSION, OpenBerlinScenario.VERSION, OpenBerlinScenario.VERSION),
-			"--shp", "input/gartenfeld/DNG_dilution_area.gpkg",
-			"--input-crs", OpenBerlinScenario.CRS,
-			"--network-modes", "car,bike",
-			"--clean-modes", "truck,freight,ride",
-			"--output-network", network,
-			"--output-population", population,
-			"--output-facilities", "input/gartenfeld/gartenfeld-v6.4.facilities-cutout.xml.gz",
-			"--output-network-change-events", "input/gartenfeld/gartenfeld-v6.4.network-change-events.xml.gz"
+				"--network", berlinNetwork,
+				"--population", fullPopulation,
+				"--facilities", "input/v%s/berlin-v%s-facilities.xml.gz".formatted(OpenBerlinScenario.VERSION, OpenBerlinScenario.VERSION),
+				"--events", "https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/berlin/berlin-v%s/output/berlin-v%s-10pct/berlin-v%s.output_events.xml.gz".formatted(OpenBerlinScenario.VERSION, OpenBerlinScenario.VERSION, OpenBerlinScenario.VERSION),
+				"--shp", "input/gartenfeld/DNG_dilution_area.gpkg",
+				"--input-crs", OpenBerlinScenario.CRS,
+				"--network-modes", "car,bike",
+				"--clean-modes", "truck,freight,ride",
+				"--output-network", network,
+				"--output-population", population,
+				"--output-facilities", "input/gartenfeld/gartenfeld-v6.4.facilities-cutout.xml.gz",
+				"--output-network-change-events", "input/gartenfeld/gartenfeld-v6.4.network-change-events.xml.gz"
 		);
 
-		createNetwork(network, network,"input/gartenfeld/DNG_network.gpkg");
-		createNetwork(berlinNetwork, fullNetwork,"input/gartenfeld/DNG_network.gpkg");
-
-		/*
-		TODO: only single network will be needed
-
-		createNetwork(network, "input/gartenfeld/networks/gartenfeld-v6.4.network-onelinkgarage-cutout.xml.gz","input/gartenfeld/DNG_network_onelinkgarage.gpkg");
-		createNetwork(fullNetwork, "input/gartenfeld/networks/gartenfeld-v6.4.network-onelinkgarage.xml.gz","input/gartenfeld/DNG_network_onelinkgarage.gpkg");
-		createNetwork(network, "input/gartenfeld/networks/gartenfeld-v6.4.network-twolinkgarage-cutout.xml.gz","input/gartenfeld/DNG_network_twolinkgarage.gpkg");
-		createNetwork(fullNetwork, "input/gartenfeld/networks/gartenfeld-v6.4.network-twolinkgarage.xml.gz","input/gartenfeld/DNG_network_twolinkgarage.gpkg");
-		createNetwork(network, "input/gartenfeld/networks/gartenfeld-v6.4.network-threelinkgarage-cutout.xml.gz","input/gartenfeld/DNG_network_threelinkgarage.gpkg");
-		createNetwork(fullNetwork, "input/gartenfeld/networks/gartenfeld-v6.4.network-threelinkgarage.xml.gz","input/gartenfeld/DNG_network_threelinkgarage.gpkg");
-		createNetwork(network, "input/gartenfeld/networks/gartenfeld-v6.4.network-fourlinkgarage-cutout.xml.gz","input/gartenfeld/DNG_network_fourlinkgarage.gpkg");
-		createNetwork(fullNetwork, "input/gartenfeld/networks/gartenfeld-v6.4.network-fourlinkgarage.xml.gz","input/gartenfeld/DNG_network_fourlinkgarage.gpkg");
-		 */
-
+		createNetwork(network, network, "input/gartenfeld/DNG_network.gpkg");
+		createNetwork(berlinNetwork, fullNetwork, "input/gartenfeld/DNG_network.gpkg");
 
 		new PersonNetworkLinkCheck().execute(
-			"--input", population,
-			"--network", network,
-			"--output", population
+				"--input", population,
+				"--network", network,
+				"--output", population
 		);
 
 		new PersonNetworkLinkCheck().execute(
-			"--input", fullPopulation,
-			"--network", fullNetwork,
-			"--output", fullPopulation
+				"--input", fullPopulation,
+				"--network", fullNetwork,
+				"--output", fullPopulation
 		);
 
 		new DownSamplePopulation().execute(
-			population,
-			"--sample-size", "0.1",
-			"--samples", "0.01"
+				population,
+				"--sample-size", "0.1",
+				"--samples", "0.01"
 		);
 
 		new DownSamplePopulation().execute(
-			fullPopulation,
-			"--sample-size", "0.1",
-			"--samples", "0.01"
+				fullPopulation,
+				"--sample-size", "0.1",
+				"--samples", "0.01"
 		);
 
 	}
@@ -90,10 +79,10 @@ public class CreateGartenfeldComplete {
 	private static void createNetwork(String network, String outputNetwork, String shp) {
 
 		new ModifyNetwork().execute(
-			"--network", network,
-			"--remove-links", "input/gartenfeld/DNG_LinksToDelete.txt",
-			"--shp", shp,
-			"--output", outputNetwork
+				"--network", network,
+				"--remove-links", "input/gartenfeld/DNG_LinksToDelete.txt",
+				"--shp", shp,
+				"--output", outputNetwork
 		);
 
 	}

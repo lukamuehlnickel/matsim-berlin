@@ -96,7 +96,19 @@ public class GartenfeldScenario extends OpenBerlinScenario {
 		}
 	}
 
+	/**
+	 * Enum for the different garage types and implicitly the car free areas.
+	 */
 	public enum GarageType {
-		NO_GARAGE, ONE_LINK, TWO_LINKS, THREE_LINKS
+		/**
+		 * No garage, cars are allowed on all links.
+		 */
+		NO_GARAGE,
+		/**
+		 * One garage, cars are only allowed on the garage link at the entrance of the area.
+		 */
+		ONE_LINK,
+		TWO_LINKS,
+		THREE_LINKS
 	}
 }

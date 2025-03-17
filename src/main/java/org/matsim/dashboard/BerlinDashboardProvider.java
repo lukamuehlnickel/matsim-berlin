@@ -23,19 +23,17 @@ public class BerlinDashboardProvider implements DashboardProvider {
 			.setAnalysisArgs("--match-id", "^berlin.+", "--shp-filter", "none")
 			.withChoiceEvaluation(true)
 			.withDistanceDistribution("mode_share_distance_distribution.csv")
-			.withGroupedRefData("mode_share_per_group_dist_ref.csv", "age", "income", "employment", "economic_status","zone");
-
-		// TODO: The definition of this dashboard should probably be in a separate run class, but for now it is more convenient here
+			.withGroupedRefData("mode_share_per_group_dist_ref.csv", "age", "income", "employment", "economic_status", "zone");
 
 		// Gartenfeld has a separate dashboard, without reference data
 		// This automatically filters by home location and configured shape file
-		TripDashboard gartenfeld = new TripDashboard();
+		Dashboard gartenfeld = Dashboard.customize(new TripDashboard())
+			.context("gartenfeld")
+			.title("Gartenfeld");
 
 		return List.of(
 			trips,
-			Dashboard.customize(gartenfeld)
-				.context("gartenfeld")
-				.title("Gartenfeld"),
+			gartenfeld,
 			new TravelTimeComparisonDashboard(ApplicationUtils.resolve(config.getContext(), "berlin-v" + OpenBerlinScenario.VERSION + "-routes-ref.csv.gz")),
 			new EmissionsDashboard(config.global().getCoordinateSystem()),
 			new NoiseDashboard(config.global().getCoordinateSystem()),
