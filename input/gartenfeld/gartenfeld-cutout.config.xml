@@ -2,8 +2,14 @@
 <!DOCTYPE config SYSTEM "http://www.matsim.org/files/dtd/config_v2.dtd">
 <config>
 
+	<!-- NOTE: This config only simulates a partial scenario -->
+
+	<!-- NOTE: Do not use it. Results don't seem to be plausible, use the gartenfeld.config.xml instead -->
+
 	<!-- This is a partial config that only contains parameters that are specific to Gartenfeld	-->
 	<!-- Use org.matsim.policies.gartenfeld.GartenfeldScenario to run this scenario -->
+
+
 
 	<module name="controller">
 		<param name="runId" value="gartenfeld-v6.4"/>
@@ -16,8 +22,8 @@
 
 	<module name="network">
 		<param name="inputNetworkFile" value="/net/ils/kreuschner/gartenfeld/matsim-berlin-v6.4/input/cutout/gartenfeld-v6.4.network-cutout.xml.gz" />
-		<!-- <param name="inputChangeEventsFile" value="/net/ils/kreuschner/gartenfeld/matsim-berlin-v6.4/gartenfeld-v6.4.network-change-events.xml.gz"/>	-->
-		<param name="timeVariantNetwork" value="false"/>
+		<param name="inputChangeEventsFile" value="/net/ils/kreuschner/gartenfeld/matsim-berlin-v6.4/gartenfeld-v6.4.network-change-events.xml.gz"/>
+		<param name="timeVariantNetwork" value="true"/>
 	</module>
 
 	<module name="facilities">

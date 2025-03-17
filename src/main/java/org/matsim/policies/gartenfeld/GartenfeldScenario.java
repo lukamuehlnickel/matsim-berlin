@@ -37,10 +37,11 @@ public class GartenfeldScenario extends OpenBerlinScenario {
 	@Override
 	protected Config prepareConfig(Config config) {
 
-		super.prepareConfig(config);
-
 		// Load the Gartenfeld specific part into the standard Berlin config
 		ConfigUtils.loadConfig(config, gartenFeldConfig);
+
+		// needs to be after load.config
+		super.prepareConfig(config);
 
 		return config;
 	}
