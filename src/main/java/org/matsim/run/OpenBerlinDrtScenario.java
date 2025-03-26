@@ -102,7 +102,7 @@ public class OpenBerlinDrtScenario extends OpenBerlinScenario {
 			String drtServiceAreaShapeFile = drtCfg.drtServiceAreaShapeFile;
 			if (drtServiceAreaShapeFile != null && !drtServiceAreaShapeFile.equals("") && !drtServiceAreaShapeFile.equals("null")) {
 
-				if (dvrpConfigGroup.networkModes.contains(drtCfg.getMode())) {
+				if (dvrpConfigGroup.getNetworkModes().contains(drtCfg.getMode())) {
 					// Michal says restricting drt to a drt network roughly the size of the service area helps to speed up.
 					// This is even more true since drt started to route on a freespeed TT matrix (Nov '20).
 					// A buffer of 10km to the service area Berlin includes the A10 on some useful stretches outside Berlin.

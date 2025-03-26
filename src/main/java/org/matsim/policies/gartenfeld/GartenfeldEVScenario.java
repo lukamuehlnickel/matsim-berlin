@@ -1,30 +1,33 @@
 package org.matsim.policies.gartenfeld;
 
-import com.google.common.util.concurrent.AtomicDouble;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.TransportMode;
-import org.matsim.api.core.v01.population.Leg;
 import org.matsim.application.MATSimApplication;
 import org.matsim.contrib.ev.EvConfigGroup;
 import org.matsim.contrib.ev.EvModule;
 import org.matsim.contrib.ev.fleet.ElectricFleetUtils;
 import org.matsim.contrib.ev.strategic.StrategicChargingConfigGroup;
 import org.matsim.contrib.ev.strategic.StrategicChargingUtils;
+import org.matsim.contrib.ev.strategic.replanning.StrategicChargingReplanningStrategy;
 import org.matsim.contrib.ev.strategic.scoring.ChargingPlanScoringParameters;
 import org.matsim.contrib.ev.withinday.WithinDayEvEngine;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.config.groups.QSimConfigGroup;
+import org.matsim.core.config.groups.ReplanningConfigGroup;
 import org.matsim.core.config.groups.VspExperimentalConfigGroup;
 import org.matsim.core.controler.Controler;
-import org.matsim.core.router.TripStructureUtils;
 import org.matsim.vehicles.Vehicle;
 import org.matsim.vehicles.VehicleType;
 import org.matsim.vehicles.VehicleUtils;
 import org.matsim.vehicles.Vehicles;
+
+import java.util.HashSet;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Scenario class for Gartenfeld with electric vehicles, extending the {@link GartenfeldScenario}.
@@ -48,7 +51,7 @@ public class GartenfeldEVScenario extends GartenfeldScenario {
 			"--config:plans.inputPlansFile", "gartenfeld-v6.4-cutout-1pct.output_plans.xml.gz",
 			"--config:vehicles.vehiclesFile", "gartenfeld-v6.4-cutout-1pct.output_vehicles.xml.gz",
 			"--config:controller.outputDirectory", "output/gartenfeld-v6.4-cutout-1pct-ev-postsim/",
-			"--config:controller.lastIteration", "1",
+			"--config:controller.lastIteration", "10",
 			"--config:controller.overwriteFiles", "deleteDirectoryIfExists"
 		);
 	}
@@ -60,24 +63,51 @@ public class GartenfeldEVScenario extends GartenfeldScenario {
 		// Add the EV config group
 		EvConfigGroup evConfigGroup = ConfigUtils.addOrGetModule(config, EvConfigGroup.class);
 		// Set the charging infrastructure file
-		evConfigGroup.chargersFile = "../../input/chargers/gartenfeld-v6.4.chargers.xml";
+		evConfigGroup.setChargersFile("../../input/chargers/gartenfeld-v6.4.chargers.xml");
 
-		// Deletes all 'normal' MATSim replanning strategies and configures replanning for charging, only.
-		// Also sets maxPlanMemorySize (for transport plans) to 1
-		StrategicChargingUtils.configureStanadlone(config);
+		StrategicChargingUtils.configure(config);
+		//we configure a standalone charging behavior simulation, i.e. no 'normal' transport replanning
+		//we can not use StrategicChargingUtils.configureStandalone(config) because it doesn't handle subpopulations
+		//however, we can not delete single strategysettings from the config. so we need to save strategies for non-persons and add them again later
+		Set<ReplanningConfigGroup.StrategySettings> strategiesToKeep = new HashSet<>();
+
+		//TODO: think about whether we really want to allow re-routing for non-persons.
+		strategiesToKeep.addAll(config.replanning().getStrategySettings().stream()
+				.filter(strategySettings -> strategySettings.getSubpopulation() == null || ! strategySettings.getSubpopulation().equals("person"))
+				.collect(Collectors.toCollection(HashSet::new)));
+
+		//remove all strategies
+		config.replanning().clearStrategySettings();
+
+		ReplanningConfigGroup.StrategySettings sevcStrategy = new ReplanningConfigGroup.StrategySettings();
+		sevcStrategy.setStrategyName(StrategicChargingReplanningStrategy.STRATEGY);
+		sevcStrategy.setWeight(1.0);
+		sevcStrategy.setSubpopulation("person");
+		config.replanning().addStrategySettings(sevcStrategy);
+        for (ReplanningConfigGroup.StrategySettings strategySettings : strategiesToKeep) {
+            config.replanning().addStrategySettings(strategySettings);
+        }
+
+        // only one transport plan per agent
+		config.replanning().setMaxAgentPlanMemorySize(1);
+
 		// the VSPConfigConsistencyChecker complains about us having no strategy that uses ChangeExpBeta.
 		// However, here we do not want _any_ transport replanning, but only replanning of EV charging (which is why we call StrategicChargingUtils.configureStanadlone(config); above).
 		// So we stop the checker from aborting
 		config.vspExperimental().setVspDefaultsCheckingLevel(VspExperimentalConfigGroup.VspDefaultsCheckingLevel.warn);
-
 
 		StrategicChargingConfigGroup strategicChargingConfigGroup = ConfigUtils.addOrGetModule(config, StrategicChargingConfigGroup.class);
 		//TODO configure the StrategicChargingConfigGroup
 
 		//configure the scoring parameters for the strategic charging
 		ChargingPlanScoringParameters chargingScoringParameters = new ChargingPlanScoringParameters();
-		//TODO configure the scoring parameters
-		strategicChargingConfigGroup.scoring = chargingScoringParameters;
+		//every time, a person goes below its minimum SoC, it gets a penalty of -5
+		chargingScoringParameters.setBelowMinimumSoc(-5);
+		//every time, a person's vehicle ends up below the minimum SoC at the end of day, it gets a penalty of -5
+		chargingScoringParameters.setBelowMinimumEndSoc(-5);
+
+		strategicChargingConfigGroup.addParameterSet(chargingScoringParameters);
+
 
 		// Because we take simulation output as input, all vehicles are actually created/contained in the vehicles file.
 		// Later (in prepareScenario), we will just override the vehicle type for a few vehicles
@@ -111,27 +141,19 @@ public class GartenfeldEVScenario extends GartenfeldScenario {
 			.filter(person -> person.getId().toString().contains("dng"))
 			.forEach(person -> {
 				WithinDayEvEngine.activate(person);
+				// the SoC value which the person will try to avoid during the day (penalty needs to be configured with ChargingPlanScoringParameters)
+				StrategicChargingUtils.setMinimumSoc(person, 0.1);
+				// the SoC value which the person will try to avoid at the end of the day (penalty needs to be configured with ChargingPlanScoringParameters)
+				StrategicChargingUtils.setMinimumSoc(person, 0.2);
+
 				Id<Vehicle> vehicleId = VehicleUtils.getVehicleId(person, TransportMode.car);
 
 				//we can not override the vehicle type, so we have to recreate the vehicle.
 				vehicles.removeVehicle(vehicleId);
 				Vehicle newVehicle = VehicleUtils.createVehicle(vehicleId, evType);
 				//TODO think about a better way to set the initial SoC
-				ElectricFleetUtils.setInitialSoc(newVehicle, 0.7);
+				ElectricFleetUtils.setInitialSoc(newVehicle, 0.5);
 				vehicles.addVehicle(newVehicle);
-
-
-				//debugging
-				AtomicDouble travelTime = new AtomicDouble(0.0);
-				AtomicDouble travelDistance = new AtomicDouble(0.0);
-
-				for (Leg leg : TripStructureUtils.getLegs(person.getSelectedPlan())) {
-					if (leg.getTravelTime().isUndefined()) {
-						log.warn("Undefined travel time for agent {} at depTime{} with mode {}", person.getId(), leg.getDepartureTime(), leg.getMode());
-					}
-					travelTime.addAndGet(-leg.getTravelTime().seconds());
-					travelDistance.addAndGet(-leg.getRoute().getDistance());
-				}
 			});
 	}
 
