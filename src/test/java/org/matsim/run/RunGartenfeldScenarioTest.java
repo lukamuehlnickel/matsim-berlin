@@ -20,6 +20,7 @@ public class RunGartenfeldScenarioTest {
 		int code = MATSimApplication.execute(GartenfeldScenario.class,
 			"--1pct",
 			"--output", utils.getOutputDirectory(),
+			"--parking-garages", "ONE_LINK",
 			"--iterations", "2",
 			"--config:qsim.numberOfThreads", "2",
 			"--config:global.numberOfThreads", "2",

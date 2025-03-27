@@ -24,7 +24,6 @@ import org.matsim.contrib.bicycle.BicycleConfigGroup;
 import org.matsim.contrib.cadyts.car.CadytsCarModule;
 import org.matsim.contrib.cadyts.car.CadytsContext;
 import org.matsim.contrib.cadyts.general.CadytsScoring;
-import org.matsim.contrib.locationchoice.frozenepsilons.FrozenTastes;
 import org.matsim.contrib.locationchoice.frozenepsilons.FrozenTastesConfigGroup;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
@@ -198,7 +197,7 @@ public class RunOpenBerlinCalibration extends MATSimApplication {
 			config.counts().setCountsScaleFactor(sampleSize * countScale);
 			config.plans().setInputFile(sample.adjustName(config.plans().getInputFile()));
 
-			sw.sampleSize = sampleSize * countScale;
+			sw.setSampleSize(sampleSize * countScale);
 		}
 
 		// Routes are not relaxed yet, and there should not be too heavy congestion
@@ -212,7 +211,7 @@ public class RunOpenBerlinCalibration extends MATSimApplication {
 			config.transit().setUseTransit(false);
 
 			// Disable dashboards, for all car runs, these take too many resources
-			sw.defaultDashboards = SimWrapperConfigGroup.Mode.disabled;
+			sw.setDefaultDashboards(SimWrapperConfigGroup.Mode.disabled);
 
 			// Only car and ride will be network modes, ride is not simulated on the network though
 			config.routing().setNetworkModes(List.of(TransportMode.car, TransportMode.ride));
@@ -250,7 +249,6 @@ public class RunOpenBerlinCalibration extends MATSimApplication {
 		if (mode == CalibrationMode.locationChoice) {
 
 			config.replanning().addStrategySettings(new ReplanningConfigGroup.StrategySettings()
-				.setStrategyName(FrozenTastes.LOCATION_CHOICE_PLAN_STRATEGY)
 				.setWeight(weight)
 				.setSubpopulation("person")
 			);
@@ -411,8 +409,6 @@ public class RunOpenBerlinCalibration extends MATSimApplication {
 	protected void prepareControler(Controler controler) {
 
 		if (mode == CalibrationMode.locationChoice) {
-			FrozenTastes.configure(controler);
-
 			controler.addOverridingModule(new AbstractModule() {
 				@Override
 				public void install() {

@@ -60,11 +60,11 @@ public class GartenfeldEVScenario extends GartenfeldScenario {
 		// Add the EV config group
 		EvConfigGroup evConfigGroup = ConfigUtils.addOrGetModule(config, EvConfigGroup.class);
 		// Set the charging infrastructure file
-		evConfigGroup.chargersFile = "../../input/chargers/gartenfeld-v6.4.chargers.xml";
+		evConfigGroup.setChargersFile("../../input/chargers/gartenfeld-v6.4.chargers.xml");
 
 		// Deletes all 'normal' MATSim replanning strategies and configures replanning for charging, only.
 		// Also sets maxPlanMemorySize (for transport plans) to 1
-		StrategicChargingUtils.configureStanadlone(config);
+		StrategicChargingUtils.configureStandalone(config);
 		// the VSPConfigConsistencyChecker complains about us having no strategy that uses ChangeExpBeta.
 		// However, here we do not want _any_ transport replanning, but only replanning of EV charging (which is why we call StrategicChargingUtils.configureStanadlone(config); above).
 		// So we stop the checker from aborting
@@ -77,7 +77,9 @@ public class GartenfeldEVScenario extends GartenfeldScenario {
 		//configure the scoring parameters for the strategic charging
 		ChargingPlanScoringParameters chargingScoringParameters = new ChargingPlanScoringParameters();
 		//TODO configure the scoring parameters
-		strategicChargingConfigGroup.scoring = chargingScoringParameters;
+
+		// TODO: this has been broken by not including the setter?
+//		strategicChargingConfigGroup.scoring = chargingScoringParameters;
 
 		// Because we take simulation output as input, all vehicles are actually created/contained in the vehicles file.
 		// Later (in prepareScenario), we will just override the vehicle type for a few vehicles

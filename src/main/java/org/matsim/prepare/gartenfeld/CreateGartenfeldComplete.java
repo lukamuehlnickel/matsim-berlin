@@ -41,6 +41,8 @@ public final class CreateGartenfeldComplete {
 				"--input-crs", OpenBerlinScenario.CRS,
 				"--network-modes", "car,bike",
 				"--clean-modes", "truck,freight,ride",
+				"--buffer", "1000",
+				"--keep-capacities",
 				"--output-network", network,
 				"--output-population", population,
 				"--output-facilities", "input/gartenfeld/gartenfeld-v6.4.facilities-cutout.xml.gz",

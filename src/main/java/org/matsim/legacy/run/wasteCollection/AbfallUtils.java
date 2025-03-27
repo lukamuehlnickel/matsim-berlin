@@ -593,9 +593,9 @@ class AbfallUtils {
 			costsJsprit = costsJsprit + bestSolution.getCost();
 
 			// Routing bestPlan to Network
-			CarrierPlan carrierPlanServices = MatsimJspritFactory.createPlan(singleCarrier, bestSolution);
-			NetworkRouter.routePlan(carrierPlanServices, netBasedCosts);
-			singleCarrier.setSelectedPlan(carrierPlanServices);
+//			CarrierPlan carrierPlanServices = MatsimJspritFactory.createPlan(singleCarrier, bestSolution);
+//			NetworkRouter.routePlan(carrierPlanServices, netBasedCosts);
+//			singleCarrier.setSelectedPlan(carrierPlanServices);
 			noPickup = noPickup + bestSolution.getUnassignedJobs().size();
 			carrierCount++;
 			if (singleCarrier.getId() == Id.create("Carrier_Chessboard", Carrier.class))
