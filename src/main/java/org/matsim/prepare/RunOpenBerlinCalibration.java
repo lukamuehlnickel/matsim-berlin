@@ -198,7 +198,7 @@ public class RunOpenBerlinCalibration extends MATSimApplication {
 			config.counts().setCountsScaleFactor(sampleSize * countScale);
 			config.plans().setInputFile(sample.adjustName(config.plans().getInputFile()));
 
-			sw.sampleSize = sampleSize * countScale;
+			sw.setSampleSize(sampleSize * countScale);
 		}
 
 		// Routes are not relaxed yet, and there should not be too heavy congestion
@@ -212,7 +212,7 @@ public class RunOpenBerlinCalibration extends MATSimApplication {
 			config.transit().setUseTransit(false);
 
 			// Disable dashboards, for all car runs, these take too many resources
-			sw.defaultDashboards = SimWrapperConfigGroup.Mode.disabled;
+			sw.setDefaultDashboards(SimWrapperConfigGroup.Mode.disabled);
 
 			// Only car and ride will be network modes, ride is not simulated on the network though
 			config.routing().setNetworkModes(List.of(TransportMode.car, TransportMode.ride));

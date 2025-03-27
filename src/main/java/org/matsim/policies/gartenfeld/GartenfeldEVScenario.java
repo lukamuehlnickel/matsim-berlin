@@ -5,10 +5,12 @@ import org.apache.logging.log4j.Logger;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.TransportMode;
+import org.matsim.api.core.v01.population.Person;
 import org.matsim.application.MATSimApplication;
 import org.matsim.contrib.ev.EvConfigGroup;
 import org.matsim.contrib.ev.EvModule;
 import org.matsim.contrib.ev.fleet.ElectricFleetUtils;
+import org.matsim.contrib.ev.infrastructure.ChargingInfrastructureSpecification;
 import org.matsim.contrib.ev.strategic.StrategicChargingConfigGroup;
 import org.matsim.contrib.ev.strategic.StrategicChargingUtils;
 import org.matsim.contrib.ev.strategic.replanning.StrategicChargingReplanningStrategy;
@@ -37,20 +39,20 @@ public class GartenfeldEVScenario extends GartenfeldScenario {
 	private static final Logger log = LogManager.getLogger(GartenfeldEVScenario.class);
 
 	//normally i would like to put the https URL here, but it isn't possible to have MATSim application load a config from a URL, atm.
-//    private static final String SVN_OUPTUT_DIRECTORY = "https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/gartenfeld/output/gartenfeld-v6.4-cutout-1pct/";
-	private static final String SVN_OUPTUT_DIRECTORY = "D:/public-svn/matsim/scenarios/countries/de/gartenfeld/output/gartenfeld-v6.4-cutout-1pct/";
+//    private static final String SVN_OUPTUT_DIRECTORY = "https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/gartenfeld/output/gartenfeld-v6.4-1pct/";
+	private static final String SVN_OUPTUT_DIRECTORY = "D:/public-svn/matsim/scenarios/countries/de/gartenfeld/output/gartenfeld-v6.4-1pct/";
 
 	public static void main(String[] args) {
 		MATSimApplication.runWithDefaults(GartenfeldEVScenario.class, args,
 			"--parking-garages", "NO_GARAGE",
-			"--config", SVN_OUPTUT_DIRECTORY + "gartenfeld-v6.4-cutout-1pct.output_config.xml",
-			"--config:network.inputChangeEventsFile", "gartenfeld-v6.4-cutout-1pct.output_change_events.xml.gz",
-			"--config:facilities.inputFacilitiesFile", "gartenfeld-v6.4-cutout-1pct.output_facilities.xml.gz",
-			"--config:controller.runId", "gartenfeld-v6.4.cutout-1pct-EV",
-			"--config:network.inputNetworkFile", "gartenfeld-v6.4-cutout-1pct.output_network.xml.gz",
-			"--config:plans.inputPlansFile", "gartenfeld-v6.4-cutout-1pct.output_plans.xml.gz",
-			"--config:vehicles.vehiclesFile", "gartenfeld-v6.4-cutout-1pct.output_vehicles.xml.gz",
-			"--config:controller.outputDirectory", "output/gartenfeld-v6.4-cutout-1pct-ev-postsim/",
+			"--config", SVN_OUPTUT_DIRECTORY + "gartenfeld-v6.4-1pct.output_config.xml",
+			"--config:network.inputChangeEventsFile", "gartenfeld-v6.4-1pct.output_change_events.xml.gz",
+			"--config:facilities.inputFacilitiesFile", "gartenfeld-v6.4-1pct.output_facilities.xml.gz",
+			"--config:controller.runId", "gartenfeld-v6.4.1pct-EV",
+			"--config:network.inputNetworkFile", "gartenfeld-v6.4-1pct.output_network.xml.gz",
+			"--config:plans.inputPlansFile", "gartenfeld-v6.4-1pct.output_plans.xml.gz",
+			"--config:vehicles.vehiclesFile", "gartenfeld-v6.4-1pct.output_vehicles.xml.gz",
+			"--config:controller.outputDirectory", "output/gartenfeld-v6.4-1pct-ev-postsim/",
 			"--config:controller.lastIteration", "10",
 			"--config:controller.overwriteFiles", "deleteDirectoryIfExists"
 		);
@@ -64,11 +66,12 @@ public class GartenfeldEVScenario extends GartenfeldScenario {
 		EvConfigGroup evConfigGroup = ConfigUtils.addOrGetModule(config, EvConfigGroup.class);
 		// Set the charging infrastructure file
 		evConfigGroup.setChargersFile("../../input/chargers/gartenfeld-v6.4.chargers.xml");
+		evConfigGroup.setAnalysisOutputs(Set.of(EvConfigGroup.EvAnalysisOutput.TimeProfiles));
 
 		StrategicChargingUtils.configure(config);
 		//we configure a standalone charging behavior simulation, i.e. no 'normal' transport replanning
 		//we can not use StrategicChargingUtils.configureStandalone(config) because it doesn't handle subpopulations
-		//however, we can not delete single strategysettings from the config. so we need to save strategies for non-persons and add them again later
+		//however, we can not delete single StrategySettings from the config. so we need to save strategies for non-persons and add them again later
 		Set<ReplanningConfigGroup.StrategySettings> strategiesToKeep = new HashSet<>();
 
 		//TODO: think about whether we really want to allow re-routing for non-persons.
@@ -98,6 +101,8 @@ public class GartenfeldEVScenario extends GartenfeldScenario {
 
 		StrategicChargingConfigGroup strategicChargingConfigGroup = ConfigUtils.addOrGetModule(config, StrategicChargingConfigGroup.class);
 		//TODO configure the StrategicChargingConfigGroup
+		//set the radius in which a person will search for a charger - pretty high for test purposes
+		strategicChargingConfigGroup.setChargerSearchRadius(3_000);
 
 		//configure the scoring parameters for the strategic charging
 		ChargingPlanScoringParameters chargingScoringParameters = new ChargingPlanScoringParameters();
@@ -129,7 +134,7 @@ public class GartenfeldEVScenario extends GartenfeldScenario {
 		VehicleUtils.copyFromTo(vehicles.getVehicleTypes().get(Id.create("car", VehicleType.class)), evType);
 		//set ev attributes
 		VehicleUtils.setHbefaTechnology(evType.getEngineInformation(), ElectricFleetUtils.EV_ENGINE_HBEFA_TECHNOLOGY);
-		VehicleUtils.setEnergyCapacity(evType.getEngineInformation(), 100);
+		VehicleUtils.setEnergyCapacity(evType.getEngineInformation(), 10);
 
 //        ElectricFleetUtils.setChargerTypes(carVehicleType, Arrays.asList("a", "b", "default" ) );
 
@@ -152,7 +157,7 @@ public class GartenfeldEVScenario extends GartenfeldScenario {
 				vehicles.removeVehicle(vehicleId);
 				Vehicle newVehicle = VehicleUtils.createVehicle(vehicleId, evType);
 				//TODO think about a better way to set the initial SoC
-				ElectricFleetUtils.setInitialSoc(newVehicle, 0.5);
+				ElectricFleetUtils.setInitialSoc(newVehicle, 0.33);
 				vehicles.addVehicle(newVehicle);
 			});
 	}
@@ -167,5 +172,17 @@ public class GartenfeldEVScenario extends GartenfeldScenario {
 
 		// add the strategic charging replanning
 		StrategicChargingUtils.configureController(controler);
+
+		HashSet<Id<Person>> gartenfeldInhabitants = controler.getScenario().getPopulation().getPersons().keySet().stream()
+				.filter(personId -> personId.toString().contains("dng"))
+				.collect(Collectors.toCollection(HashSet::new));
+
+		//TODO: prepare the charging infrastructure somewhere else, preferably in prepareScenario or in a separate class (but then have to read+write the chargers file)
+		controler.getInjector().getInstance(ChargingInfrastructureSpecification.class).getChargerSpecifications().values().forEach(charger -> {
+			// assign all chargers to be public
+			StrategicChargingUtils.assignPublic(charger, true);
+			// assign all chargers to be available for all Gartenfeld inhabitants
+			StrategicChargingUtils.assignChargerPersons( charger, gartenfeldInhabitants );
+		});
 	}
 }

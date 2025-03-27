@@ -99,7 +99,7 @@ public class OpenBerlinDrtScenario extends OpenBerlinScenario {
 		DvrpConfigGroup dvrpConfigGroup = DvrpConfigGroup.get(scenario.getConfig());
 
 		for (DrtConfigGroup drtCfg : MultiModeDrtConfigGroup.get(scenario.getConfig()).getModalElements()) {
-			String drtServiceAreaShapeFile = drtCfg.drtServiceAreaShapeFile;
+			String drtServiceAreaShapeFile = drtCfg.getDrtServiceAreaShapeFile();
 			if (drtServiceAreaShapeFile != null && !drtServiceAreaShapeFile.equals("") && !drtServiceAreaShapeFile.equals("null")) {
 
 				if (dvrpConfigGroup.getNetworkModes().contains(drtCfg.getMode())) {
