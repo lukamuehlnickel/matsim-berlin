@@ -173,11 +173,21 @@ public class GartenfeldEVScenario extends GartenfeldScenario {
 		// add the strategic charging replanning
 		StrategicChargingUtils.configureController(controler);
 
+
+		//TODO: prepare the charging infrastructure (public, private, access, ...) somewhere else, preferably in prepareScenario or in a separate class (but then have to read+write the chargers file)
+
+//		controler.addOverridingModule(new AbstractModule() {
+//										  @Override
+//										  public void install() {
+//											  //give every person access to every charger
+//											  bind(ChargerAccess.class).to(AnyChargerAccess.class);
+//										  }
+//									  }
+//		);
+
 		HashSet<Id<Person>> gartenfeldInhabitants = controler.getScenario().getPopulation().getPersons().keySet().stream()
 				.filter(personId -> personId.toString().contains("dng"))
 				.collect(Collectors.toCollection(HashSet::new));
-
-		//TODO: prepare the charging infrastructure somewhere else, preferably in prepareScenario or in a separate class (but then have to read+write the chargers file)
 		controler.getInjector().getInstance(ChargingInfrastructureSpecification.class).getChargerSpecifications().values().forEach(charger -> {
 			// assign all chargers to be public
 			StrategicChargingUtils.assignPublic(charger, true);
