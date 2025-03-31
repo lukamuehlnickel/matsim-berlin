@@ -54,7 +54,8 @@ public class GartenfeldLinkChooser implements MultimodalLinkChooser {
 
 		// Reset the link and always search for a new link to be selected if the coordinate is within the area.
 		// The provided link could be wrong already (i.e. across the water)
-		if (Objects.equals(mode, TransportMode.car) && area.contains(MGC.coord2Point(facility.getCoord()))) {
+		if ( (Objects.equals(mode, TransportMode.car) || Objects.equals(mode, TransportMode.bike)) &&
+			area.contains(MGC.coord2Point(facility.getCoord()))) {
 			link = null;
 		}
 
@@ -65,9 +66,7 @@ public class GartenfeldLinkChooser implements MultimodalLinkChooser {
 			if (Objects.equals(mode, TransportMode.car) && area.contains(MGC.coord2Point(facility.getCoord()))) {
 				targetLink = access ? accessLink : egressLink;
 				return network.getLinks().get(targetLink);
-
 			} else {
-
 				// Choose the nearest link on the filtered network
 				link = NetworkUtils.getNearestLink(network, facility.getCoord()) ;
 			}
