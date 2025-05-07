@@ -2,11 +2,20 @@ package org.matsim.policies.gartenfeld;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.geotools.api.data.DataStore;
+import org.geotools.api.data.FileDataStore;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.data.shapefile.ShapefileDataStore;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.prep.PreparedGeometry;
+import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.TransportMode;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.application.MATSimApplication;
+import org.matsim.application.options.ShpOptions;
 import org.matsim.contrib.ev.EvConfigGroup;
 import org.matsim.contrib.ev.EvModule;
 import org.matsim.contrib.ev.fleet.ElectricFleetUtils;
@@ -22,13 +31,19 @@ import org.matsim.core.config.groups.QSimConfigGroup;
 import org.matsim.core.config.groups.ReplanningConfigGroup;
 import org.matsim.core.config.groups.VspExperimentalConfigGroup;
 import org.matsim.core.controler.Controler;
+import org.matsim.core.population.PopulationUtils;
+import org.matsim.core.utils.geometry.geotools.MGC;
+import org.matsim.core.utils.gis.GeoFileReader;
+import org.matsim.core.utils.io.IOUtils;
+import org.matsim.utils.gis.shp2matsim.ShpGeometryUtils;
 import org.matsim.vehicles.Vehicle;
 import org.matsim.vehicles.VehicleType;
 import org.matsim.vehicles.VehicleUtils;
 import org.matsim.vehicles.Vehicles;
 
-import java.util.HashSet;
-import java.util.Set;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -141,25 +156,7 @@ public class GartenfeldEVScenario extends GartenfeldScenario {
 		//add the ev type
 		scenario.getVehicles().addVehicleType(evType);
 
-		//activate strategic ev charging for all Gartenfeld inhabitants and change their cars to be evs
-		scenario.getPopulation().getPersons().values().stream()
-			.filter(person -> person.getId().toString().contains("dng"))
-			.forEach(person -> {
-				WithinDayEvEngine.activate(person);
-				// the SoC value which the person will try to avoid during the day (penalty needs to be configured with ChargingPlanScoringParameters)
-				StrategicChargingUtils.setMinimumSoc(person, 0.1);
-				// the SoC value which the person will try to avoid at the end of the day (penalty needs to be configured with ChargingPlanScoringParameters)
-				StrategicChargingUtils.setMinimumSoc(person, 0.2);
-
-				Id<Vehicle> vehicleId = VehicleUtils.getVehicleId(person, TransportMode.car);
-
-				//we can not override the vehicle type, so we have to recreate the vehicle.
-				vehicles.removeVehicle(vehicleId);
-				Vehicle newVehicle = VehicleUtils.createVehicle(vehicleId, evType);
-				//TODO think about a better way to set the initial SoC
-				ElectricFleetUtils.setInitialSoc(newVehicle, 0.33);
-				vehicles.addVehicle(newVehicle);
-			});
+		preparePopulation(scenario, vehicles, evType);
 	}
 
 	@Override
@@ -195,4 +192,112 @@ public class GartenfeldEVScenario extends GartenfeldScenario {
 			StrategicChargingUtils.assignChargerPersons( charger, gartenfeldInhabitants );
 		});
 	}
+
+	/**
+	 *
+	 * @param scenario
+	 * @param vehicles
+	 * @param evType
+	 */
+	private static void preparePopulation(Scenario scenario, Vehicles vehicles, VehicleType evType) {
+// TODO:
+//	\item We retrieve the number of electric vehicles $n_{ev_i}$ \tilmann{wir unterscheiden hier erstmal keine plug-in-hybride!? wäre möglich nach Daten, aber dann wie im Verhaltensmodell???} per postal zone $i$ from the geo data portal of the Berlin Senate \tilmann{cite}, illustrated in~\hyperref[fig:saulen-und-ev]{Figure~\textbf{XYZ}}.
+//    \item We determine the postal zone of the home activity for each agent in the OBM \tilmann{100\% ?} that uses a car at least once throughout the day. All other agents are deleted.
+//    \item We iterate over the postal zones. For each postal zone, we randomly select $n_{ev_i}$ agents and change their car to be electric. All other agents are deleted.
+//    \item We assign person attributes for the initial state of charge (SoC) and availability of a home and/or work charger. \todo[inline]{\tilmann{Attribute: initial SoC ??? sollte zusammenhängen mit Home-Charger ja/nein. Kriegen wir dazu Daten??}}
+//    \tilmann{Moritz kriegt evtl Benutzungsdaten der öffentlichen Infrastruktur. Das kann man ggf. auch zur Grobkalibirerung der Anzahl privater Ladepunkte nehmen: Drehe so lange hoch, bis die Auslastung der öffentlichen Infrastruktur stimmt.}
+
+
+		//activate strategic ev charging for all Gartenfeld inhabitants and change their cars to be evs
+		scenario.getPopulation().getPersons().values().stream()
+				.filter(person -> person.getId().toString().contains("dng"))
+				.forEach(person -> {
+					WithinDayEvEngine.activate(person);
+					// the SoC value which the person will try to avoid during the day (penalty needs to be configured with ChargingPlanScoringParameters)
+					StrategicChargingUtils.setMinimumSoc(person, 0.1);
+					// the SoC value which the person will try to avoid at the end of the day (penalty needs to be configured with ChargingPlanScoringParameters)
+					StrategicChargingUtils.setMinimumEndSoc(person, 0.2);
+
+					Id<Vehicle> vehicleId = VehicleUtils.getVehicleId(person, TransportMode.car);
+
+					//we can not override the vehicle type, so we have to recreate the vehicle.
+					vehicles.removeVehicle(vehicleId);
+					Vehicle newVehicle = VehicleUtils.createVehicle(vehicleId, evType);
+					//TODO think about a better way to set the initial SoC
+					ElectricFleetUtils.setInitialSoc(newVehicle, 0.33);
+					vehicles.addVehicle(newVehicle);
+				});
+
+		// this file has the number of evs per postal zone for 2023
+		String pathToGeoFileWithEVsPerPostalZone = "https://svn.vsp.tu-berlin.de/repos/shared-svn/projects/Mobility2Grid/data/EV/ev-bestand-plz-berlin-2023.gpkg";
+
+//		Collection<SimpleFeature> evPerPostalZone = GeoFileReader.getAllFeatures(pathToGeoFileWithEVsPerPostalZone);
+
+		List<PreparedGeometry> evPerPostalZone = ShpGeometryUtils.loadPreparedGeometries(IOUtils.resolveFileOrResource(pathToGeoFileWithEVsPerPostalZone));
+
+		Map<PreparedGeometry, List<Id<Person>>> postalZones2Inhabitants = new HashMap<>();
+
+
+		//We determine the postal zone of the home activity for each agent in the OBM \tilmann{100\% ?}
+		for (Person person : scenario.getPopulation().getPersons().values()) {
+			if (!PopulationUtils.getSubpopulation(person).equals("person")) {
+				continue;
+			}
+
+			//TODO filter out person that do not use the car, here!
+
+			double homeX = (double) person.getAttributes().getAttribute("home_x");
+			double homeY = (double) person.getAttributes().getAttribute("home_y");
+
+//			ShpGeometryUtils
+			Coord homeCoord = new Coord(homeX, homeY);
+
+			Point point = MGC.coord2Point(homeCoord);
+			Optional<PreparedGeometry> homeZone = evPerPostalZone.stream()
+					.filter(g -> g.contains(point))
+					.findFirst();
+
+			if (homeZone.isEmpty()) {
+				log.warn("could not determine home zone for person " + person.getId());
+			} else {
+				postalZones2Inhabitants.computeIfAbsent(homeZone.get(), k -> new ArrayList<>()).add(person.getId());
+			}
+
+		}
+
+
+
+
+
+	}
+
+
+
+	/**
+	 * Read features from configured file (gpkg or shp).
+	 * based on  org.matsim.application.options.ShpOptions
+	 * @return null if no shp configured.
+	 */
+	public List<SimpleFeature> readFeatures(String filePath) {
+		if (filePath == null)
+			throw new IllegalStateException("geo file path not specified");
+
+		try {
+			DataStore ds = ShpOptions.openDataStore(filePath);
+
+			//TODO see if necessary
+//			if (shpCharset != null && ds instanceof ShapefileDataStore shpDs)
+//				shpDs.setCharset(shpCharset);
+
+			if (ds instanceof FileDataStore fds) {
+				return GeoFileReader.getSimpleFeatures(fds);
+			}
+
+			return GeoFileReader.getSimpleFeatures(ds, getLayer(ds));
+		} catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
+
 }
