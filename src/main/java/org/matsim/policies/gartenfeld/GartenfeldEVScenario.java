@@ -205,7 +205,6 @@ public class GartenfeldEVScenario extends GartenfeldScenario {
 //    \item We determine the postal zone of the home activity for each agent in the OBM \tilmann{100\% ?} that uses a car at least once throughout the day. All other agents are deleted.
 //    \item We iterate over the postal zones. For each postal zone, we randomly select $n_{ev_i}$ agents and change their car to be electric. All other agents are deleted.
 //    \item We assign person attributes for the initial state of charge (SoC) and availability of a home and/or work charger. \todo[inline]{\tilmann{Attribute: initial SoC ??? sollte zusammenhängen mit Home-Charger ja/nein. Kriegen wir dazu Daten??}}
-//    \tilmann{Moritz kriegt evtl Benutzungsdaten der öffentlichen Infrastruktur. Das kann man ggf. auch zur Grobkalibirerung der Anzahl privater Ladepunkte nehmen: Drehe so lange hoch, bis die Auslastung der öffentlichen Infrastruktur stimmt.}
 
 
 		//activate strategic ev charging for all Gartenfeld inhabitants and change their cars to be evs
@@ -265,39 +264,15 @@ public class GartenfeldEVScenario extends GartenfeldScenario {
 
 		}
 
+		//TODO: We iterate over the postal zones. For each postal zone, we randomly select $n_{ev_i}$ agents and change their car to be electric. All other agents are deleted.
 
+		//TODO: We assign person attributes for the initial state of charge (SoC) and availability of a home and/or work charger. \todo[inline]{\tilmann{Attribute: initial SoC ??? sollte zusammenhängen mit Home-Charger ja/nein. Kriegen wir dazu Daten??}}
 
 
 
 	}
 
 
-
-	/**
-	 * Read features from configured file (gpkg or shp).
-	 * based on  org.matsim.application.options.ShpOptions
-	 * @return null if no shp configured.
-	 */
-	public List<SimpleFeature> readFeatures(String filePath) {
-		if (filePath == null)
-			throw new IllegalStateException("geo file path not specified");
-
-		try {
-			DataStore ds = ShpOptions.openDataStore(filePath);
-
-			//TODO see if necessary
-//			if (shpCharset != null && ds instanceof ShapefileDataStore shpDs)
-//				shpDs.setCharset(shpCharset);
-
-			if (ds instanceof FileDataStore fds) {
-				return GeoFileReader.getSimpleFeatures(fds);
-			}
-
-			return GeoFileReader.getSimpleFeatures(ds, getLayer(ds));
-		} catch (IOException e) {
-			throw new UncheckedIOException(e);
-		}
-	}
 
 
 }
