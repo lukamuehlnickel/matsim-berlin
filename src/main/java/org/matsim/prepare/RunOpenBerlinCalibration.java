@@ -24,7 +24,6 @@ import org.matsim.contrib.bicycle.BicycleConfigGroup;
 import org.matsim.contrib.cadyts.car.CadytsCarModule;
 import org.matsim.contrib.cadyts.car.CadytsContext;
 import org.matsim.contrib.cadyts.general.CadytsScoring;
-import org.matsim.contrib.locationchoice.frozenepsilons.FrozenTastes;
 import org.matsim.contrib.locationchoice.frozenepsilons.FrozenTastesConfigGroup;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
@@ -250,7 +249,6 @@ public class RunOpenBerlinCalibration extends MATSimApplication {
 		if (mode == CalibrationMode.locationChoice) {
 
 			config.replanning().addStrategySettings(new ReplanningConfigGroup.StrategySettings()
-				.setStrategyName(FrozenTastes.LOCATION_CHOICE_PLAN_STRATEGY)
 				.setWeight(weight)
 				.setSubpopulation("person")
 			);
@@ -411,8 +409,6 @@ public class RunOpenBerlinCalibration extends MATSimApplication {
 	protected void prepareControler(Controler controler) {
 
 		if (mode == CalibrationMode.locationChoice) {
-			FrozenTastes.configure(controler);
-
 			controler.addOverridingModule(new AbstractModule() {
 				@Override
 				public void install() {
