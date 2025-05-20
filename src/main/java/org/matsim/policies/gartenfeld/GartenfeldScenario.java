@@ -14,6 +14,7 @@ import org.matsim.core.controler.Controler;
 import org.matsim.core.network.algorithms.MultimodalNetworkCleaner;
 import org.matsim.core.population.algorithms.ParallelPersonAlgorithmUtils;
 import org.matsim.core.router.MultimodalLinkChooser;
+import org.matsim.core.router.MultimodalLinkChooserDefaultImpl;
 import org.matsim.run.OpenBerlinScenario;
 import picocli.CommandLine;
 
@@ -103,6 +104,7 @@ public class GartenfeldScenario extends OpenBerlinScenario {
 			controler.addOverridingModule(new AbstractModule() {
 				@Override
 				public void install() {
+					bind( MultimodalLinkChooserDefaultImpl.class );
 					bind(MultimodalLinkChooser.class).toInstance(new GartenfeldLinkChooser(ShpOptions.ofLayer(gartenFeldArea, null)));
 				}
 			});
