@@ -2,20 +2,17 @@ package org.matsim.policies.gartenfeld;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.geotools.api.data.DataStore;
-import org.geotools.api.data.FileDataStore;
 import org.geotools.api.feature.simple.SimpleFeature;
-import org.geotools.data.shapefile.ShapefileDataStore;
-import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.prep.PreparedGeometry;
+import org.locationtech.jts.geom.prep.PreparedGeometryFactory;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.TransportMode;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.application.MATSimApplication;
-import org.matsim.application.options.ShpOptions;
 import org.matsim.contrib.ev.EvConfigGroup;
 import org.matsim.contrib.ev.EvModule;
 import org.matsim.contrib.ev.fleet.ElectricFleetUtils;
@@ -41,8 +38,6 @@ import org.matsim.vehicles.VehicleType;
 import org.matsim.vehicles.VehicleUtils;
 import org.matsim.vehicles.Vehicles;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -204,7 +199,7 @@ public class GartenfeldEVScenario extends GartenfeldScenario {
 //	\item We retrieve the number of electric vehicles $n_{ev_i}$ \tilmann{wir unterscheiden hier erstmal keine plug-in-hybride!? wäre möglich nach Daten, aber dann wie im Verhaltensmodell???} per postal zone $i$ from the geo data portal of the Berlin Senate \tilmann{cite}, illustrated in~\hyperref[fig:saulen-und-ev]{Figure~\textbf{XYZ}}.
 //    \item We determine the postal zone of the home activity for each agent in the OBM \tilmann{100\% ?} that uses a car at least once throughout the day. All other agents are deleted.
 //    \item We iterate over the postal zones. For each postal zone, we randomly select $n_{ev_i}$ agents and change their car to be electric. All other agents are deleted.
-//    \item We assign person attributes for the initial state of charge (SoC) and availability of a home and/or work charger. \todo[inline]{\tilmann{Attribute: initial SoC ??? sollte zusammenhängen mit Home-Charger ja/nein. Kriegen wir dazu Daten??}}
+//    \item We assign person attributes for the initial state of charge (SoC) and availability of a home and/or work charger.
 
 
 		//activate strategic ev charging for all Gartenfeld inhabitants and change their cars to be evs
@@ -230,7 +225,7 @@ public class GartenfeldEVScenario extends GartenfeldScenario {
 		// this file has the number of evs per postal zone for 2023
 		String pathToGeoFileWithEVsPerPostalZone = "https://svn.vsp.tu-berlin.de/repos/shared-svn/projects/Mobility2Grid/data/EV/ev-bestand-plz-berlin-2023.gpkg";
 
-//		Collection<SimpleFeature> evPerPostalZone = GeoFileReader.getAllFeatures(pathToGeoFileWithEVsPerPostalZone);
+		Collection<SimpleFeature> evPerPostalZone = GeoFileReader.getAllFeatures(pathToGeoFileWithEVsPerPostalZone);
 
 		List<PreparedGeometry> evPerPostalZone = ShpGeometryUtils.loadPreparedGeometries(IOUtils.resolveFileOrResource(pathToGeoFileWithEVsPerPostalZone));
 
@@ -264,10 +259,90 @@ public class GartenfeldEVScenario extends GartenfeldScenario {
 
 		}
 
-		//TODO: We iterate over the postal zones. For each postal zone, we randomly select $n_{ev_i}$ agents and change their car to be electric. All other agents are deleted.
+		// We iterate over the postal zones. For each postal zone, we randomly select $n_{ev_i}$ agents and change their car to be electric. All other agents are deleted.
+		// For now, we mock the values per zone (should be read from attribute file or geometry in future)
 
-		//TODO: We assign person attributes for the initial state of charge (SoC) and availability of a home and/or work charger. \todo[inline]{\tilmann{Attribute: initial SoC ??? sollte zusammenhängen mit Home-Charger ja/nein. Kriegen wir dazu Daten??}}
+		// this file has the number of evs per postal zone for 2023
+		String pathToGeoFileWithEVsPerPostalZone = "https://svn.vsp.tu-berlin.de/repos/shared-svn/projects/Mobility2Grid/data/EV/ev-bestand-plz-berlin-2023.gpkg";
 
+		Collection<SimpleFeature> evZoneFeatures = GeoFileReader.getAllFeatures(pathToGeoFileWithEVsPerPostalZone);
+		Map<PreparedGeometry, Integer> zoneToEVQuota = new HashMap<>();
+
+		for (SimpleFeature feature : evZoneFeatures) {
+			Geometry geom = (Geometry) feature.getDefaultGeometry();
+			PreparedGeometry prepGeom = PreparedGeometryFactory.prepare(geom);
+			Object evCountObj = feature.getAttribute("n_ev");
+			if (evCountObj instanceof Number) {
+				int evCount = ((Number) evCountObj).intValue();
+				zoneToEVQuota.put(prepGeom, evCount);
+			} else {
+				log.warn("Missing or invalid 'n_ev' attribute for feature: {}", feature.getID());
+			}
+		}
+
+		Map<PreparedGeometry, List<Id<Person>>> postalZones2Inhabitants = new HashMap<>();
+
+		for (Person person : scenario.getPopulation().getPersons().values()) {
+			if (!PopulationUtils.getSubpopulation(person).equals("person")) {
+				continue;
+			}
+
+			boolean usesCar = person.getSelectedPlan().getPlanElements().stream()
+				.anyMatch(pe -> PopulationUtils.sampleDown(person, TransportMode.car));
+			if (!usesCar) continue;
+
+			double homeX = (double) person.getAttributes().getAttribute("home_x");
+			double homeY = (double) person.getAttributes().getAttribute("home_y");
+			Coord homeCoord = new Coord(homeX, homeY);
+			Point point = MGC.coord2Point(homeCoord);
+
+			Optional<PreparedGeometry> homeZone = zoneToEVQuota.keySet().stream()
+				.filter(g -> g.contains(point))
+				.findFirst();
+
+			if (homeZone.isEmpty()) {
+				log.warn("Could not determine home zone for person {}", person.getId());
+			} else {
+				postalZones2Inhabitants.computeIfAbsent(homeZone.get(), k -> new ArrayList<>()).add(person.getId());
+			}
+		}
+
+		Set<Id<Person>> evPersons = new HashSet<>();
+		for (Map.Entry<PreparedGeometry, Integer> entry : zoneToEVQuota.entrySet()) {
+			List<Id<Person>> candidates = postalZones2Inhabitants.getOrDefault(entry.getKey(), List.of());
+			Collections.shuffle(candidates);
+			int limit = Math.min(entry.getValue(), candidates.size());
+			evPersons.addAll(candidates.subList(0, limit));
+		}
+
+		scenario.getPopulation().getPersons().keySet().retainAll(evPersons);
+
+		// We assign person attributes for the initial state of charge (SoC) and availability of a home and/or work charger. initial SoC ??? sollte zusammenhängen mit Home-Charger ja/nein. Kriegen wir dazu Daten??
+		// Assign initial SoC based on a simple rule: if person has home_x < 500000 assign charger access
+		for (Id<Person> personId : evPersons) {
+			Person person = scenario.getPopulation().getPersons().get(personId);
+			WithinDayEvEngine.activate(person);
+			StrategicChargingUtils.setMinimumSoc(person, 0.1);
+			StrategicChargingUtils.setMinimumEndSoc(person, 0.2);
+
+			Id<Vehicle> vehicleId = VehicleUtils.getVehicleId(person, TransportMode.car);
+			vehicles.removeVehicle(vehicleId);
+			Vehicle newVehicle = VehicleUtils.createVehicle(vehicleId, evType);
+
+			// Randomly assign home charger access (50% chance or should it based on the something else? )
+			boolean hasHomeCharger = Math.random() < 0.5;
+			person.getAttributes().putAttribute("has_home_charger", hasHomeCharger);
+			if (hasHomeCharger) {
+				ElectricFleetUtils.setInitialSoc(newVehicle, 0.9);
+			} else {
+				ElectricFleetUtils.setInitialSoc(newVehicle, 0.3);
+			}
+
+			vehicles.addVehicle(newVehicle);
+		}
+
+		log.info("Assigned {} persons to EVs.", evPersons.size());
+	}
 
 
 	}
