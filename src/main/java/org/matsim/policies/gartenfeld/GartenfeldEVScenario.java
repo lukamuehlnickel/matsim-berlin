@@ -29,6 +29,7 @@ import org.matsim.core.config.groups.ReplanningConfigGroup;
 import org.matsim.core.config.groups.VspExperimentalConfigGroup;
 import org.matsim.core.controler.Controler;
 import org.matsim.core.population.PopulationUtils;
+import org.matsim.core.router.TripStructureUtils;
 import org.matsim.core.utils.geometry.geotools.MGC;
 import org.matsim.core.utils.gis.GeoFileReader;
 import org.matsim.core.utils.io.IOUtils;
@@ -202,7 +203,7 @@ public class GartenfeldEVScenario extends GartenfeldScenario {
 
 
 		// this file has the number of evs per postal zone for 2023
-		String pathToGeoFileWithEVsPerPostalZone = "https://svn.vsp.tu-berlin.de/repos/shared-svn/projects/Mobility2Grid/data/EV/ev-bestand-plz-berlin-2023.gpkg";
+		String pathToGeoFileWithEVsPerPostalZone = "https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/gartenfeld/input/EV/ev-bestand-plz-berlin-2023.gpkg";
 
 //		Collection<SimpleFeature> evPerPostalZone = GeoFileReader.getAllFeatures(pathToGeoFileWithEVsPerPostalZone);
 
@@ -217,7 +218,11 @@ public class GartenfeldEVScenario extends GartenfeldScenario {
 				continue;
 			}
 
-			//TODO filter out person that do not use the car, here!
+			//filter out person that do not use the car, here!
+			if(! isCarUser(person)) {
+				continue;
+			}
+
 
 			double homeX = (double) person.getAttributes().getAttribute("home_x");
 			double homeY = (double) person.getAttributes().getAttribute("home_y");
@@ -261,14 +266,19 @@ public class GartenfeldEVScenario extends GartenfeldScenario {
 			// das input file hat ausserdem auch die _anteile_ der EV.
 			// wir (TS+MK) entshceiden uns aber für den nachbau er absoluten EV_Nachfrage (on 2023), um die frage beantworten zu können,
 			// wie hoch der (absolute) ernergiebedarf ist
-			int numberOfEVs = Math.min(1, (Integer) postalZone.getAttribute("anzahlelektrogesamt"));
+			Double numberOfEVs = (Double) postalZone.getAttribute("anzahlelektrogesamt");
+			if (numberOfEVs == null) {
+				log.warn("could not determine number of EVs for postal zone " + postalZone.getAttribute("plz"));
+				//TODO decide what to do with those zones! for now we ignore those ( no evs are generated)
+				continue;
+			}
 
-			log.info("Postal zone " + postalZone.getID() + ": " + inhabitants.size() + " inhabitants, " + numberOfEVs + " EVs");
+			log.info("Postal zone " + postalZone.getAttribute("plz") + ": " + inhabitants.size() + " inhabitants, " + numberOfEVs + " EVs");
 
 			// handle the case where we do not have enough agents (e.g. because of small population sample size)
 			if (numberOfEVs > inhabitants.size()) {
-				log.warn("Not enough inhabitants in postal zone " + postalZone.getID() + ": " + inhabitants.size() + " < " + numberOfEVs);
-				numberOfEVs = inhabitants.size();
+				log.warn("Not enough inhabitants in postal zone " + postalZone.getAttribute("plz") + ": " + inhabitants.size() + " < " + numberOfEVs);
+				numberOfEVs = Double.valueOf(inhabitants.size());
 				tooFewAgents = true;
 			}
 
@@ -282,8 +292,8 @@ public class GartenfeldEVScenario extends GartenfeldScenario {
 			// TODO think about whether we want to do this for all dng inhabitants
 			scenario.getPopulation().getPersons().values().stream()
 					.filter(person -> person.getId().toString().contains("dng"))
+					.filter(person -> isCarUser(person))
 					.forEach(person -> configureEVDriver(vehicles, evType, person));
-
 		}
 
 		if (tooFewAgents) {
@@ -296,6 +306,13 @@ public class GartenfeldEVScenario extends GartenfeldScenario {
 				scenario.getPopulation().removePerson(person.getId());
 			}
 		});
+	}
+
+	private static boolean isCarUser(Person person) {
+		return TripStructureUtils.getLegs(person.getSelectedPlan()).stream()
+				.filter(leg -> leg.getMode().equals(TransportMode.car))
+				.findAny()
+				.isPresent();
 	}
 
 	private static void configureEVDriver(Vehicles vehicles, VehicleType evType, Person person) {
