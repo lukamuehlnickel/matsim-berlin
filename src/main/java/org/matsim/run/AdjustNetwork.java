@@ -1,6 +1,5 @@
 package org.matsim.run;
 
-import org.apache.logging.log4j.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.geotools.api.feature.simple.SimpleFeature;
@@ -27,9 +26,10 @@ import java.util.function.ToDoubleFunction;
  *     <li><b>fahrrad</b> – if true, adds <code>bike</code> to the allowed modes</li>
  *     <li><b>speed</b> – is converted from km/h to m/s and written both as the link’s freespeed and
  *         a custom attribute <code>allowed_speed</code></li>
+ *     <li><b>capacity</b> – link capacity in veh/h (fallback = 1 800)</li>
  *     <li><b>twoWay / oneway</b> – directionality. If a boolean field <code>twoWay</code> exists, its value is used.
- *         Otherwise a <code>oneway</code> field is interpreted (true ⇒ one‑way, false ⇒ two‑way). If neither is
- *         present, the link is treated as <em>one‑way</em> (no reverse link).</li>
+ *         Otherwise a <code>oneway</code> field is interpreted (true ⇒ one-way, false ⇒ two-way). If neither is
+ *         present, the link is treated as <em>one-way</em> (no reverse link).</li>
  * </ul>
  */
 @CommandLine.Command(
@@ -155,14 +155,19 @@ public class AdjustNetwork implements MATSimAppCommand {
 
     /* ----- Standard-Attribute und neue Shape-Attribute übernehmen ----- */
     private void setAttrs(Link l, LineString geom, SimpleFeature f) {
+
         /* Geschwindigkeit aus Shape (km/h) → m/s */
         double speedKmh = Optional.ofNullable((Number) f.getAttribute("speed"))
-                .map(Number::doubleValue).orElse(50.0);
+                .map(Number::doubleValue).orElse(30.0);
         double speedMs  = speedKmh / 3.6;
+
+        /* Kapazität aus Shape (veh/h), Fallback 1 800 */
+        double capacity = Optional.ofNullable((Number) f.getAttribute("capacity"))
+                .map(Number::doubleValue).orElse(1800.0);
 
         l.setLength(geom.getLength());
         l.setFreespeed(speedMs);
-        l.setCapacity(1800);
+        l.setCapacity(capacity);
         l.setNumberOfLanes(1);
 
         /* Allowed modes */
@@ -184,6 +189,7 @@ public class AdjustNetwork implements MATSimAppCommand {
 
         /* Zusätzlich in den benutzerdefinierten Attributen speichern */
         l.getAttributes().putAttribute("allowed_speed", speedMs);
+        l.getAttributes().putAttribute("capacity_shape", capacity); // optional
     }
 
     /*  Attribute in den Reverse-Link übernehmen */
