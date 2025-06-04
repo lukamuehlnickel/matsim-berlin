@@ -14,6 +14,7 @@ import org.matsim.core.network.io.NetworkWriter;
 import org.matsim.core.utils.geometry.geotools.MGC;
 import picocli.CommandLine;
 
+import java.lang.reflect.Method;
 import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
@@ -22,7 +23,7 @@ import java.util.function.ToDoubleFunction;
 /**
  * Extends the basic AdjustNetwork tool with support for additional attributes in the *shape* file:
  * <ul>
- *     <li><b>pkw</b>  – if true, allows the full motor-vehicle set (bike, car, freight, ride, truck)</li>
+ *     <li><b>pkw</b> – if true, allows the full motor-vehicle set (bike, car, freight, ride, truck)</li>
  *     <li><b>fahrrad</b> – if true, adds <code>bike</code> to the allowed modes</li>
  *     <li><b>speed</b> – is converted from km/h to m/s and written both as the link’s freespeed and
  *         a custom attribute <code>allowed_speed</code></li>
@@ -30,6 +31,10 @@ import java.util.function.ToDoubleFunction;
  *     <li><b>twoWay / oneway</b> – directionality. If a boolean field <code>twoWay</code> exists, its value is used.
  *         Otherwise a <code>oneway</code> field is interpreted (true ⇒ one-way, false ⇒ two-way). If neither is
  *         present, the link is treated as <em>one-way</em> (no reverse link).</li>
+ *     <li><b>type</b> – copied unchanged into the link. If <code>Link#setType(String)</code> is available at runtime
+ *         it will be invoked; otherwise the value is stored as a custom attribute <code>type</code>.</li>
+ *     <li><b>node_type</b> – copied for *nodes* only and stored under the attribute name <code>type</code>.
+ *         The value is <em>not</em> written to links.</li>
  * </ul>
  */
 @CommandLine.Command(
@@ -92,14 +97,13 @@ public class AdjustNetwork implements MATSimAppCommand {
 
         /* 2. Sortieren: 'priority'-Links zuerst */
         feats.sort(Comparator.comparingInt(f -> {
-            String t = Objects.toString(f.getAttribute("type"), "");
-            return "priority".equalsIgnoreCase(t) ? 0 : 1;   // 0 = vorn, 1 = hinten
+            String t = Objects.toString(f.getAttribute("node_type"), "");
+            return "priority".equalsIgnoreCase(t) ? 0 : 1;
         }));
 
         /* 3. Abarbeiten */
         long added = 0;
         for (SimpleFeature f : feats) {
-
             Geometry g = (Geometry) f.getDefaultGeometry();
             if (g instanceof LineString ls) {
                 added += processLine(ls, f, idx);
@@ -117,29 +121,21 @@ public class AdjustNetwork implements MATSimAppCommand {
         Node from = matchNode(idx, ls.getCoordinateN(0));
         Node to   = matchNode(idx, ls.getCoordinateN(ls.getNumPoints() - 1));
 
-        // eindeutige Link-ID erzeugen
         Id<Link> id = Id.createLinkId(f.getID());
         if (network.getLinks().containsKey(id))
             id = Id.createLinkId(id + "_dup" + UUID.randomUUID());
 
-        // Link anlegen und Attribute setzen
         Link link = network.getFactory().createLink(id, from, to);
         setAttrs(link, ls, f);
 
-        /* ----------- 'type'-Attribut verarbeiten ----------- */
-        String linkType = Objects.toString(f.getAttribute("type"), null);
-        if (linkType != null) {
-
-            // am Link speichern
-            link.getAttributes().putAttribute("type", linkType);
-
-            // nur beim allerersten Kontakt für die Knoten übernehmen
+        /* ----- node_type nur für Nodes als „type“ übernehmen ----- */
+        String nodeType = Objects.toString(f.getAttribute("node_type"), "").trim();
+        if (!nodeType.isEmpty()) {
             if (from.getAttributes().getAttribute("type") == null)
-                from.getAttributes().putAttribute("type", linkType);
+                from.getAttributes().putAttribute("type", nodeType);
             if (to.getAttributes().getAttribute("type") == null)
-                to.getAttributes().putAttribute("type", linkType);
+                to.getAttributes().putAttribute("type", nodeType);
         }
-        /* ---------------------------------------------------- */
 
         network.addLink(link);
 
@@ -153,43 +149,42 @@ public class AdjustNetwork implements MATSimAppCommand {
         return 1;
     }
 
-    /* ----- Standard-Attribute und neue Shape-Attribute übernehmen ----- */
+    /* ----- Standard- und Shape-Attribute übernehmen ----- */
     private void setAttrs(Link l, LineString geom, SimpleFeature f) {
-
-        /* Geschwindigkeit aus Shape (km/h) → m/s */
-        double speedKmh = Optional.ofNullable((Number) f.getAttribute("speed"))
+        double speedKmh = Optional.ofNullable((Number) f.getAttribute("Speed"))
                 .map(Number::doubleValue).orElse(30.0);
         double speedMs  = speedKmh / 3.6;
-
-        /* Kapazität aus Shape (veh/h), Fallback 1 800 */
         double capacity = Optional.ofNullable((Number) f.getAttribute("capacity"))
                 .map(Number::doubleValue).orElse(1800.0);
+        int lanes = Optional.ofNullable((Number) f.getAttribute("lanes"))
+                .map(Number::intValue).orElse(1);
 
         l.setLength(geom.getLength());
         l.setFreespeed(speedMs);
         l.setCapacity(capacity);
-        l.setNumberOfLanes(1);
+        l.setNumberOfLanes(lanes);
 
-        /* Allowed modes */
         Set<String> modes = new HashSet<>();
-
-        // pkw → kompletter Motor-Fahrzeug-Satz
-        if (isTrue(f.getAttribute("pkw"))) {
-            modes.addAll(Set.of("bike", "car", "freight", "ride", "truck"));
-        }
-        // fahrrad → bike zusätzlich/allein
-        if (isTrue(f.getAttribute("fahrrad"))) {
-            modes.add("bike");
-        }
-        // Fallback, damit immer etwas gesetzt ist
-        if (modes.isEmpty()) {
-            modes.add("car");
-        }
+        if (isTrue(f.getAttribute("pkw")))     modes.addAll(Set.of("bike", "car", "freight", "ride", "truck"));
+        if (isTrue(f.getAttribute("fahrrad"))) modes.add("bike");
+        if (modes.isEmpty())                   modes.add("car");
         l.setAllowedModes(modes);
 
-        /* Zusätzlich in den benutzerdefinierten Attributen speichern */
+        applyType(l, Objects.toString(f.getAttribute("type"), "").trim());
+
         l.getAttributes().putAttribute("allowed_speed", speedMs);
-        l.getAttributes().putAttribute("capacity_shape", capacity); // optional
+        l.getAttributes().putAttribute("capacity_shape", capacity);
+    }
+
+    /** Trägt den Typ in das Link-Objekt oder alternativ als Custom-Attribut. */
+    private static void applyType(Link l, String typeAttr) {
+        if (typeAttr == null || typeAttr.isEmpty()) return;
+        try {
+            Method m = l.getClass().getMethod("setType", String.class);
+            m.invoke(l, typeAttr);
+        } catch (ReflectiveOperationException e) {
+            l.getAttributes().putAttribute("type", typeAttr);
+        }
     }
 
     /*  Attribute in den Reverse-Link übernehmen */
@@ -200,21 +195,29 @@ public class AdjustNetwork implements MATSimAppCommand {
         b.setNumberOfLanes(a.getNumberOfLanes());
         b.setAllowedModes(new HashSet<>(a.getAllowedModes()));
 
-        // sämtliche benutzerdefinierten Attribute übertragen
+        try {
+            Method getType = a.getClass().getMethod("getType");
+            Object t = getType.invoke(a);
+            if (t instanceof String s && !s.isEmpty()) {
+                applyType(b, s);
+            }
+        } catch (ReflectiveOperationException ignored) {
+            Object s = a.getAttributes().getAttribute("type");
+            if (s instanceof String str && !str.isEmpty()) {
+                applyType(b, str);
+            }
+        }
+
         a.getAttributes().getAsMap().forEach((k, v) -> b.getAttributes().putAttribute(k, v));
     }
 
     /* ---- Richtung bestimmen ---- */
     private boolean determineTwoWay(SimpleFeature f) {
         Object twoWayAttr = f.getAttribute("twoWay");
-        if (twoWayAttr != null) {
-            return isTrue(twoWayAttr);  // explizites Feld → fertig
-        }
+        if (twoWayAttr != null) return isTrue(twoWayAttr);
         Object onewayAttr = f.getAttribute("oneway");
-        if (onewayAttr != null) {
-            return !isTrue(onewayAttr); // oneway == true ⇒ kein reverse
-        }
-        return false; // Default: einspurig (kein reverse)
+        if (onewayAttr != null) return !isTrue(onewayAttr);
+        return false; // Default: einspurig
     }
 
     /* ----- fuzzy Matching  (legt fehlende Nodes an) ----- */
@@ -233,7 +236,7 @@ public class AdjustNetwork implements MATSimAppCommand {
 
         /* 2. Nur echte Nodes behalten und sortieren */
         List<Node> cand = raw.stream()
-                .filter(Node.class::isInstance)     // nur Nodes
+                .filter(Node.class::isInstance)
                 .map(Node.class::cast)
                 .filter(n -> dist.applyAsDouble(n) < r)
                 .sorted(Comparator.comparingDouble(dist))
