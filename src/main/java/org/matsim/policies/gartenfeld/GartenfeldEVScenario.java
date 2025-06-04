@@ -124,7 +124,6 @@ public class GartenfeldEVScenario extends GartenfeldScenario {
 
 		strategicChargingConfigGroup.addParameterSet(chargingScoringParameters);
 
-
 		// Because we take simulation output as input, all vehicles are actually created/contained in the vehicles file.
 		// Later (in prepareScenario), we will just override the vehicle type for a few vehicles
 		// This means we do not want to (re-) create the vehicles from the vehicle types, and we do want different vehicle types for vehicles of the same mode.
@@ -166,9 +165,8 @@ public class GartenfeldEVScenario extends GartenfeldScenario {
 		// add the strategic charging replanning
 		StrategicChargingUtils.configureController(controler);
 
-
-		//TODO: prepare the charging infrastructure (public, private, access, ...) somewhere else, preferably in prepareScenario or in a separate class (but then have to read+write the chargers file)
-
+		//TODO: prepare the charging infrastructure (public, private, access, ...) somewhere else,
+		// preferably in prepareScenario or in a separate class (but then we have to read+write the chargers file)
 //		controler.addOverridingModule(new AbstractModule() {
 //										  @Override
 //										  public void install() {
@@ -196,13 +194,12 @@ public class GartenfeldEVScenario extends GartenfeldScenario {
 	 * @param evType
 	 */
 	private static void preparePopulation(Scenario scenario, Vehicles vehicles, VehicleType evType) {
-//	\item We retrieve the number of electric vehicles $n_{ev_i}$ \tilmann{wir unterscheiden hier erstmal keine plug-in-hybride!? wäre möglich nach Daten, aber dann wie im Verhaltensmodell???} per postal zone $i$ from the geo data portal of the Berlin Senate \tilmann{cite}, illustrated in~\hyperref[fig:saulen-und-ev]{Figure~\textbf{XYZ}}.
-//    \item We determine the postal zone of the home activity for each agent in the OBM \tilmann{100\% ?} that uses a car at least once throughout the day. All other agents are deleted.
-//    \item We iterate over the postal zones. For each postal zone, we randomly select $n_{ev_i}$ agents and change their car to be electric. All other agents are deleted.
-//    \item We assign person attributes for the initial state of charge (SoC) and availability of a home and/or work charger.
+		//	 1. We retrieve the number of electric vehicles $n_{ev_i}$ per postal zone $i$ from the geo data portal of the Berlin Senate (as geo file).
+		//   2. We determine the postal zone of the home activity for each agent in the OBM \tilmann{100\% ?} that uses a car at least once throughout the day. All other agents are deleted.
+		//   3. We iterate over the postal zones. For each postal zone, we randomly select $n_{ev_i}$ agents and change their car to be electric. All other agents are deleted.
+		//   4. We assign person attributes for the initial state of charge (SoC) and availability of a home and/or work charger.
 
-
-		// this file has the number of evs per postal zone for 2023
+		// this file has the number of evs per postal zone for 2023. it was downloaded from the Berlin Senate Geo Data Portal.
 		String pathToGeoFileWithEVsPerPostalZone = "https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/gartenfeld/input/EV/ev-bestand-plz-berlin-2023.gpkg";
 
 //		Collection<SimpleFeature> evPerPostalZone = GeoFileReader.getAllFeatures(pathToGeoFileWithEVsPerPostalZone);
@@ -222,7 +219,6 @@ public class GartenfeldEVScenario extends GartenfeldScenario {
 			if(! isCarUser(person)) {
 				continue;
 			}
-
 
 			double homeX = (double) person.getAttributes().getAttribute("home_x");
 			double homeY = (double) person.getAttributes().getAttribute("home_y");
@@ -264,7 +260,7 @@ public class GartenfeldEVScenario extends GartenfeldScenario {
 			// deswegen, nehmen wir hier erstmal die gesamte Anzahl an EVs = anzahlelektrogesamt
 
 			// das input file hat ausserdem auch die _anteile_ der EV.
-			// wir (TS+MK) entshceiden uns aber für den nachbau er absoluten EV_Nachfrage (on 2023), um die frage beantworten zu können,
+			// wir (TS+MK) entscheiden uns aber für den nachbau der absoluten EV_Nachfrage (von 2023), um die frage beantworten zu können,
 			// wie hoch der (absolute) ernergiebedarf ist
 			Double numberOfEVs = (Double) postalZone.getAttribute("anzahlelektrogesamt");
 			if (numberOfEVs == null) {
@@ -332,9 +328,10 @@ public class GartenfeldEVScenario extends GartenfeldScenario {
 		vehicles.addVehicle(newVehicle);
 
 		//TODO: homeChargers
-		// Randomly assign home charger access (50% chance or should it based on the something else? )
-		boolean hasHomeCharger = Math.random() < 0.5;
-		person.getAttributes().putAttribute("has_home_charger", hasHomeCharger);
+		// Randomly assign home charger access (50% chance or should it be based on the something else? )
+		// ts, june '25: this should be one variable of our study, because there is no data. Target: reverse engineer the home charger availability.
+//		boolean hasHomeCharger = Math.random() < 0.5;
+//		person.getAttributes().putAttribute("has_home_charger", hasHomeCharger);
 	}
 
 }
