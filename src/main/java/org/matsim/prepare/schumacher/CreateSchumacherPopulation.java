@@ -26,10 +26,10 @@ public class CreateSchumacherPopulation implements MATSimAppCommand {
     public Integer call() throws Exception {
 
         new CreateFixedPopulation().execute(
-                "--n", "9050",
+                "--n", "10050",
                 "--sample", "0.1",
                 "--unemployed", "0.013",
-                "--age-dist", "0.149", "0.203",
+                "--age-dist", "0.241", "0.065", /*Denke, dass die erste Zahl für u18 und die zweite ü65 steht*/
                 "--facilities", "input/schumacherQuartier/schumacher_residential.shp",
                 "--prefix", "dng",
                 "--output", output
